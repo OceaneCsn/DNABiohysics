@@ -63,8 +63,30 @@ class Genome():
 
     def inversion(self):
         self.gen = np.array(self.gen_ancetre)
-        print('inversion pas encore codee')
-
+        
+        #selection of two inversion bounds in intergenic region
+        intergenes = np.where(self.gen == 'i')[0]
+        pos1 = rd.choice(intergenes)
+        pos2 = rd.choice(intergenes)
+        print('inversion de ', min(pos1,pos2), ' a ', max(pos1,pos2))
+        
+        #inversion des nucleotides
+        inverted = np.flip(self.gen[min(pos1,pos2) : max(pos1, pos2)])
+        print(inverted.size, inverted)
+        list_gen = self.gen.tolist()
+        list_gen[min(pos1,pos2) : max(pos1, pos2)] = inverted.tolist()
+        self.gen = np.array(list_gen)
+        
+        #changement du sens des genes dans le dataframe self.genes
+        for g in self.genes_list:
+            if g in self.gen[min(pos1,pos2) : max(pos1, pos2)]:
+                print(g, 'inverted')
+                #on regarde ou il faut changer le signe du strand dans self.genes
+                #print('index ',i, ' tu ', self.genes_TU[g])
+                if self.genes['Strand'].iloc[self.genes_TU[g]+1,] == '+':
+                    self.genes['Strand'].iloc[self.genes_TU[g]+1,] = '-'
+                else:
+                    self.genes['Strand'].iloc[self.genes_TU[g]+1,] = '+'
 
     def insertion(self):
         '''
@@ -85,10 +107,9 @@ class Genome():
         self.gen = np.array(self.gen_ancetre)
         intergenes = np.where(self.gen == 'i')[0]
         for i in list(g0.barrier["prot_pos"])+list(g0.TSS["TSS_pos"]):
-            print(i)
+            #print(i)
             if i<self.indel_size:
                 new_i = self.gen.size - (self.indel_size - i)
-                print("new i ", new_i)
                 
                 to_delete = []
                 to_delete2 = []
@@ -120,7 +141,7 @@ class Genome():
             print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
             self.gen = np.delete(self.gen, range(del_pos, del_pos + self.indel_size))
             
-            
+        return self.gen
     def compute_fitness(self, init = False):
         #pathToFiles = '/home/ocassan/ProjetSimADN/'
         pathToFiles = 'D:/ProjetSimADN'
@@ -131,26 +152,37 @@ class Genome():
             
     def update_files(self):
         #update barriers positions
-        self.barrier['prot_pos'] = np.where(self.genome_ancetre == 'b')[0]
+        self.barrier['prot_pos'] = np.where(self.gen_ancetre == 'b')[0]
 
         #update TSS and TTS
         for g in self.genes_list:
-            tmp = np.where(self.genome_ancetre==g)[0]
+            tmp = np.where(self.gen_ancetre==g)[0]
+            print(g, self.gen_ancetre.size)
             tss = tmp[0]
             tts = tmp[-1]
+            if self.genes['Strand'].iloc[self.genes_TU[g]+1,] == '-':
+                temp = tss
+                tss = tts
+                tts = temp
+                print('***************************** ',temp, tss, tts)
             self.TSS.iloc[self.genes_TU[g], 2] = tss
             self.TTS.iloc[self.genes_TU[g], 2] = tts
 
-        #update genes
-        self.genes.iloc[0,4] = self.genome_ancetre.size
+        #update genes size, tss and tts
+        self.genes.iloc[0,4] = self.gen_ancetre.size
         self.genes.iloc[1:,3] = list(self.TSS["TSS_pos"])
         self.genes.iloc[1:,4] = list(self.TTS["TTS_pos"])
         
-        self.data.iloc[4,4] = self.genome_ancetre.size
+        #orientation dans TSS et TTS
+        self.TSS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
+        self.TTS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
+        
+        #tout mis a jour dans data
+        self.data.iloc[4,4] = self.gen_ancetre.size
         self.data.iloc[5:,3] = list(self.TSS["TSS_pos"])
         self.data.iloc[5:,4] = list(self.TTS["TTS_pos"])
-
-
+        self.data['Strand'].iloc[5:,] = list(self.genes['Strand'].iloc[1:,])
+        
     def dataframes_to_text(self):
         '''
         converts the dataframe attributes to .dat files that can be
@@ -164,10 +196,8 @@ class Genome():
         
         
     def evolution_step(self, t):
-        #creation du genome
-        self.create_genome()
         
-        #mutation de ce genome suivant la probabilite relative
+        #mutation du genome suivant la probabilite relative
         r = rd.random()
         if(self.indelInvRatio):
             if  r < self.f:
@@ -187,34 +217,47 @@ class Genome():
                     self.deletion()
                     
         #evaluation de la fitness du nouveau genome par simulation
-        '''utiliser le code du prof de github'''
+        '''
+        ICI : utiliser le code du prof de github qui va generer le nouvel
+        environnement.dat utilise par compute_fitness
+        '''
         new_fitness = self.compute_fitness()
         keep = False
-        #garder le nouveau genome ou non
-        if new_fitness >= self.fitness:
+        #garder le nouveau genome?
+        if new_fitness > self.fitness:
             keep = True
         else:
             #on tire la probabilite dans une loi exponentielle
             proba = self.T0*math.exp(-self.T0*t)
             if rd.random() < proba:
                 keep = True
-        if keep:
+        if True:
             #mise a jour des attributs en consequent
-            self.genome_ancetre = np.array(self.gen)
+            self.gen_ancetre = np.array(self.gen)
+
             self.fitness = new_fitness
             self.update_files()
             self.dataframes_to_text()
+        
                 
     def evolution(self, T):
         '''
-        simulates a genome evolution by a Monte Carlo algorithm
+        simulates a genome evolution using a Monte Carlo algorithm
         '''
+        self.create_genome()
         for t in range(T):
             self.evolution_step(t)
 
 
 g0 = Genome(f = 0.5)
-l = g0.create_genome()
-a = g0.evolution_step(0)
-a = g0.data
-#g0.deletion()
+#g0.create_genome()
+#g0.evolution_step(0)
+g0.evolution(10)
+#de = g0.deletion()
+'''g0.create_genome()
+g0.inversion()
+l = g0.gen
+g0.genome_ancetre = l
+
+g0.update_files()'''
+
