@@ -14,6 +14,7 @@ import os
 import numpy as np
 import random as rd
 import math
+import simulation as sim
 
 class Genome():
 
@@ -62,6 +63,7 @@ class Genome():
         #defines the current genome
         self.gen_ancetre = np.array(list(genome))
         self.fitness = self.compute_fitness(init = True)
+        self.tmp_genes = self.genes.copy()
         return self.gen_ancetre
 
 
@@ -72,25 +74,25 @@ class Genome():
         intergenes = np.where(self.gen == 'i')[0]
         pos1 = rd.choice(intergenes)
         pos2 = rd.choice(intergenes)
-        print('inversion de ', min(pos1,pos2), ' a ', max(pos1,pos2))
+        print('Inversion de ', min(pos1,pos2), ' a ', max(pos1,pos2))
 
         #inversion des nucleotides
         inverted = np.flip(self.gen[min(pos1,pos2) : max(pos1, pos2)])
-        print(inverted.size, inverted)
         list_gen = self.gen.tolist()
         list_gen[min(pos1,pos2) : max(pos1, pos2)] = inverted.tolist()
         self.gen = np.array(list_gen)
 
         #changement du sens des genes dans le dataframe self.genes
+        
         for g in self.genes_list:
             if g in self.gen[min(pos1,pos2) : max(pos1, pos2)]:
                 print(g, 'inverted')
                 #on regarde ou il faut changer le signe du strand dans self.genes
                 #print('index ',i, ' tu ', self.genes_TU[g])
                 if self.genes['Strand'].iloc[self.genes_TU[g]+1,] == '+':
-                    self.genes['Strand'].iloc[self.genes_TU[g]+1,] = '-'
+                    self.tmp_genes['Strand'].iloc[self.genes_TU[g]+1,] = '-'
                 else:
-                    self.genes['Strand'].iloc[self.genes_TU[g]+1,] = '+'
+                    self.tmp_genes['Strand'].iloc[self.genes_TU[g]+1,] = '+'
 
     def insertion(self):
         '''
@@ -121,7 +123,6 @@ class Genome():
         for i in get_genes_starts:
             to_delete = [j for j in range(i + 1, i + gene_length)]
             not_intergenes = not_intergenes[np.invert(np.isin(not_intergenes, to_delete))]
-        print(not_intergenes)
 
 		#Apply a protection field before each non-intergene element : between 
         #this number and the correpsonding one of not_intergenes, 
@@ -132,7 +133,6 @@ class Genome():
                 to_protect_bounds = np.append(to_protect_bounds, [self.gen.size + i, 0])
                 to_protect_bounds = to_protect_bounds[to_protect_bounds >= 0]
         to_protect_bounds.sort()
-        print(to_protect_bounds)
         not_possible = []
         for i in zip(to_protect_bounds, not_intergenes):
             not_possible.extend([j for j in range(i[0], i[1])])
@@ -243,7 +243,7 @@ class Genome():
         self.TSS.to_csv('TSS.dat', header=True, index=False, sep='\t', mode='w')
         self.TTS.to_csv('TTS.dat', header=True, index=False, sep='\t', mode='w')
         self.barrier.to_csv('prot.dat', header=True, index=False, sep='\t', mode='w')
-        self.data.to_csv('tousgenesindentiques.gff', header=False, index=False, sep='\t', mode='w')
+        self.data.to_csv('tousgenesidentiques.gff', header=False, index=False, sep='\t', mode='w')
 
 
 
@@ -273,7 +273,11 @@ class Genome():
         ICI : utiliser le code du prof de github qui va generer le nouvel
         environnement.dat utilise par compute_fitness
         '''
-        new_fitness = self.compute_fitness()
+        sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'), 
+                               os.path.join(self.pathToFiles, 'testRes'))
+
+        #new_fitness = self.compute_fitness()
+        new_fitness = 10
         keep = False
         #garder le nouveau genome?
         if new_fitness > self.fitness:
@@ -285,6 +289,7 @@ class Genome():
                 keep = True
         if True:
             #mise a jour des attributs en consequent
+            self.genes = self.tmp_genes.copy()
             self.gen_ancetre = np.array(self.gen)
 
             self.fitness = new_fitness
@@ -303,11 +308,9 @@ class Genome():
 #pathToFiles = 'D:/ProjetSimADN'
 #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/Init_files/'
         
-g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.8)
-g0.create_genome()
-g0.evolution_step(0)
-a = g0.genes
-#g0.evolution(20)
+g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
 
-#a = g0.genes
+g0.evolution(10)
+
+a = g0.genes
 
