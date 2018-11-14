@@ -3,7 +3,10 @@
 """
 Created on Fri Oct 12 08:52:51 2018
 
-@author: ocassan
+@authors: Julie Etienne, Amaury Prin, Océane Cassan
+
+Projet de biologie computationnelle
+
 """
 
 import pandas as pd
@@ -15,16 +18,17 @@ import math
 class Genome():
 
 
-    def __init__(self, f=None, indel_size = 60, indelInvRatio = True, T0 = 0.1):
+    def __init__(self, pathToFiles = '/home/ocassan/ProjetSimADN', f=None, indel_size = 60, indelInvRatio = True, T0 = 0.1):
         '''
         Creates a genome.
         The genome is initialized with the files in the folder pathToFiles
         Mettre la signification de tous les attributs aussi
         '''
-        pathToFiles = 'D:/ProjetSimADN/Init_files'
-        #pathToFiles = '/home/ocassan/ProjetSimADN/Init_files'
-        #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/Init_files/'
-        tmp = pd.read_csv(os.path.join(pathToFiles,'tousgenesidentiques.gff'), header = None, names =  ['name'])
+        self.pathToFiles = pathToFiles
+        pathToInitFiles = os.path.join(self.pathToFiles, 'Init_files')
+        pathToInitFiles = 'Init_files'
+        tmp = pd.read_csv(os.path.join(pathToInitFiles,'tousgenesidentiques.gff'), header = None, names =  ['name'])
+        #dataframe attributes of the genome, and parameters
         self.data = pd.DataFrame(tmp.name.str.split('\t',8).tolist(), columns = ['Seqname', 'Source', 'Feature', 'Start', 'End', 'Score', 'Strand', 'Frame' , 'Attribute'])
         self.genes = pd.DataFrame(self.data.iloc[4:len(self.data),:])
         self.genes = self.genes.reset_index(drop = True)
@@ -192,11 +196,11 @@ class Genome():
         return self.gen
 
     def compute_fitness(self, init = False):
-        #pathToFiles = '/home/ocassan/ProjetSimADN/'
-        #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
-        pathToFiles = 'D:/ProjetSimADN'
+
         if init:
-            pathToFiles = os.path.join(pathToFiles, 'Init_files')
+            pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
+        else:
+            pathToFiles = self.pathToFiles
         new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
         return np.exp(-sum((new_env.iloc[:,1]-self.env.iloc[:,1])/self.env.iloc[:,1]))
 
@@ -296,10 +300,14 @@ class Genome():
         for t in range(T):
             self.evolution_step(t)
 
-
-g0 = Genome(f = 0.8)
-
-g0.evolution(20)
-
+#pathToFiles = 'D:/ProjetSimADN'
+#pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/Init_files/'
+        
+g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.8)
+g0.create_genome()
+g0.evolution_step(0)
 a = g0.genes
+#g0.evolution(20)
+
+#a = g0.genes
 
