@@ -152,6 +152,7 @@ class Genome():
             
     def update_files(self):
         #update barriers positions
+        print(len(np.where(self.gen_ancetre == 'b')[0]))
         self.barrier['prot_pos'] = np.where(self.gen_ancetre == 'b')[0]
 
         #update TSS and TTS
@@ -249,15 +250,8 @@ class Genome():
             self.evolution_step(t)
 
 
-g0 = Genome(f = 0.5)
-#g0.create_genome()
-#g0.evolution_step(0)
-g0.evolution(10)
-#de = g0.deletion()
-'''g0.create_genome()
-g0.inversion()
-l = g0.gen
-g0.genome_ancetre = l
+g0 = Genome(f = 0.8)
 
-g0.update_files()'''
+g0.evolution(20)
 
+a = g0.genes
