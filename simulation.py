@@ -594,6 +594,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # craete the numpy array
             prob_unhooked_rate = np.full(len(RNAPs_unhooked_id), prob_unhooked_rate)
             all_prob = np.concatenate([prob_init_rate, prob_unhooked_rate])
+            #print(all_prob, 'time : ', t)
             # create the numpy array that will contains [ nTSS , Unhooked RNAPS ]
             # e.g if we have 2 TSSs and 3 unhooked RNAPols then
             # tss_and_unhooked_RNAPs = [0, 1, -1, -1, -1]
