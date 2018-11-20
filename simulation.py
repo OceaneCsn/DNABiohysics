@@ -45,19 +45,16 @@ def read_config_file_v2(path):
     TSS_file = config.get('INPUTS', 'TSS')
     TTS_file = config.get('INPUTS', 'TTS')
     Prot_file = config.get('INPUTS', 'BARR_FIX')
-
     # get values from the config file
     m = config.getfloat('GLOBAL', 'm')
     sigma_t = config.getfloat('GLOBAL', 'sigma_t')
     epsilon = config.getfloat('GLOBAL', 'epsilon')
-
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
     DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
     DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
     SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
-
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
     TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
@@ -67,7 +64,6 @@ def read_config_file_v2(path):
     x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
     x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
-
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     try:
         SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
@@ -78,7 +74,6 @@ def read_config_file_v2(path):
         SIGMA_0 = fsolve(func, sig0_initial_guess)[0]
         if not isinstance(SIGMA_0,float):
             print("Error computing SIGMA_0")
-
     return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, SIM_TIME, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
 """
 
@@ -272,17 +267,14 @@ def save_files(output_path,
 def start_transcribing(INI_file, first_output_path=None, resume_output_path=None, resume=False):
 
     """Example function with types documented in the docstring.
-
     `PEP 484`_ type annotations are supported. If attribute, parameter, and
     return types are annotated according to `PEP 484`_, they do not need to be
     included in the docstring:
-
     Args:
         INI_file (str): The path to the parameter file.
         first_output_path (str, optional): The path in which all the generated files (when) will be saved.
         resume_output_path (str, optional): The path in which all the generated files (when resuming) will be saved.
         resume (bool, optional): Whether this function is used to resume an already done simulation or not.
-
     Returns:
         GFF_file : Relative path to the GFF file
         TSS_file : Relative path to the TSS file
@@ -301,7 +293,6 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         save_Barr_pos : Contains the barriers positions (whether Barr_fix or RNAPol)
         cov_bp : Coverage
         tr_end : The end (position) of transcripts
-
     """
 
     ###########################################################
@@ -594,13 +585,11 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # craete the numpy array
             prob_unhooked_rate = np.full(len(RNAPs_unhooked_id), prob_unhooked_rate)
             all_prob = np.concatenate([prob_init_rate, prob_unhooked_rate])
-            #print(all_prob, 'time : ', t)
             # create the numpy array that will contains [ nTSS , Unhooked RNAPS ]
             # e.g if we have 2 TSSs and 3 unhooked RNAPols then
             # tss_and_unhooked_RNAPs = [0, 1, -1, -1, -1]
             tss_and_unhooked_RNAPs = np.concatenate([tss_id, np.full(len(RNAPs_unhooked_id), -1, dtype=int)])
             # pick up a random transcipt
-            #print(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), all_prob)
             picked_tr = np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False, p=all_prob) #RNAPs_unhooked_id
             # This is the KEY !
             picked_tr_hooked_id = picked_tr[np.where(picked_tr!=-1)[0]]
@@ -822,6 +811,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             mean_sig_wholeGenome = (Barr_sigma[0]+Barr_sigma[1])/2
 
         # Update the initiation rate
+        
         init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
 
         if t%OUTPUT_STEP == 0:

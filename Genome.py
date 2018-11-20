@@ -8,7 +8,7 @@ Created on Fri Oct 12 08:52:51 2018
 Projet de biologie computationnelle
 
 """
-
+import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import numpy as np
@@ -38,10 +38,10 @@ class Genome():
         #rapport indels/inversions
         self.f = f
         self.T0 = T0
-        self.TSS = pd.read_csv(os.path.join(pathToFiles,'TSS.dat'), sep =  '\t')
-        self.TTS = pd.read_csv(os.path.join(pathToFiles,'TTS.dat'), sep =  '\t')
-        self.barrier = pd.read_csv(os.path.join(pathToFiles,'prot.dat'), sep =  '\t')
-        self.env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
+        self.TSS = pd.read_csv(os.path.join(pathToInitFiles,'TSS.dat'), sep =  '\t')
+        self.TTS = pd.read_csv(os.path.join(pathToInitFiles,'TTS.dat'), sep =  '\t')
+        self.barrier = pd.read_csv(os.path.join(pathToInitFiles,'prot.dat'), sep =  '\t')
+        self.env = pd.read_csv(os.path.join(pathToInitFiles,'environment.dat'), header = None, sep =  '\t')
         self.indel_size = indel_size
         self.indelInvRatio = indelInvRatio
 
@@ -86,7 +86,7 @@ class Genome():
         
         for g in self.genes_list:
             if g in self.gen[min(pos1,pos2) : max(pos1, pos2)]:
-                print(g, 'inverted')
+                #print(g, 'inverted')
                 #on regarde ou il faut changer le signe du strand dans self.genes
                 #print('index ',i, ' tu ', self.genes_TU[g])
                 if self.genes['Strand'].iloc[self.genes_TU[g]+1,] == '+':
@@ -144,7 +144,7 @@ class Genome():
         possible = np.array([i for i in range(0, self.gen.size)])
         possible = possible[np.invert(np.isin(possible, not_possible))]
         del_pos = rd.choice(possible)
-        print("del_pos = ", del_pos, " Is del_pos in not_possible ?", del_pos in not_possible)
+        #print("del_pos = ", del_pos, " Is del_pos in not_possible ?", del_pos in not_possible)
 
         #Remove
         if(del_pos > self.gen.size - self.indel_size):
@@ -154,44 +154,6 @@ class Genome():
         else:
             print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
             self.gen = np.delete(self.gen, range(del_pos, del_pos + self.indel_size))
-
-        '''
-        intergenes = np.where(self.gen == 'i')[0]
-        for i in list(g0.barrier["prot_pos"])+list(g0.TSS["TSS_pos"]):
-            #print(i)
-            if i<self.indel_size:
-                new_i = self.gen.size - (self.indel_size - i)
-
-                to_delete = []
-                to_delete2 = []
-                for inter in intergenes:
-                    if inter in range(new_i, self.gen.size):
-                        to_delete.append(inter)
-
-                intergenes = np.delete(intergenes, to_delete)
-
-                for inter in intergenes:
-                    if inter in range(new_i, self.gen.size):
-                        to_delete2.append(inter)
-
-                intergenes = np.delete(intergenes, to_delete2)
-            else:
-                to_delete = []
-                for inter in intergenes:
-                    if inter in range(i-self.indel_size, i):
-                        to_delete.append(inter)
-                intergenes = np.delete(intergenes, to_delete)
-        del_pos = rd.choice(intergenes)
-        print("Deletion at : ", del_pos)
-
-        if(del_pos > self.gen.size - self.indel_size):
-            print("Positions deleted : ", range(del_pos, self.gen.size), " and ", range(0, self.indel_size - (self.gen.size - del_pos)))
-            self.gen = np.delete(self.gen, range(del_pos, self.gen.size))
-            self.gen = np.delete(self.gen, range(0, self.indel_size - (self.gen.size - del_pos)))
-        else:
-            print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
-            self.gen = np.delete(self.gen, range(del_pos, del_pos + self.indel_size))
-        '''
 
         return self.gen
 
@@ -219,6 +181,10 @@ class Genome():
                 tts = temp
             self.TSS.iloc[self.genes_TU[g], 2] = tss
             self.TTS.iloc[self.genes_TU[g], 2] = tts
+            #print('Barriers in gene : ')
+            #for b in self.barrier['prot_pos']:
+             #   if b < max(tts, tss) and b > min(tts, tss):
+              #      print("buuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuug : ", b)
 
         #update genes size, tss and tts
         self.genes.iloc[0,4] = self.gen_ancetre.size
@@ -228,7 +194,13 @@ class Genome():
         #orientation dans TSS et TTS
         self.TSS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
         self.TTS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
-
+        
+        self.genes.iloc[0,3] = int(self.genes.iloc[0,3])
+        self.genes = self.genes.sort_values(by='Start')
+        self.TSS = self.TSS.sort_values(by=['TSS_pos'])
+        self.TTS = self.TTS.sort_values(by=['TTS_pos'])
+        #print(self.TSS['TSS_pos'], self.TTS['TTS_pos'])
+        #self.barrier.sort_index(by = ['prot_pos'])
         #tout mis a jour dans data
         self.data.iloc[4,4] = self.gen_ancetre.size
         self.data.iloc[5:,3] = list(self.TSS["TSS_pos"])
@@ -246,12 +218,11 @@ class Genome():
         self.data.to_csv('tousgenesidentiques.gff', header=False, index=False, sep='\t', mode='w')
 
 
-
     def evolution_step(self, t):
 
         #mutation du genome suivant la probabilite relative
         r = rd.random()
-        if(self.indelInvRatio):
+        '''if(self.indelInvRatio):
             if  r < self.f:
                 if rd.random() < 0.5:
                     self.insertion()
@@ -266,16 +237,24 @@ class Genome():
                 if rd.random() < 0.5:
                     self.insertion()
                 else:
-                    self.deletion()
+                    self.deletion()'''
+        self.inversion()
 
         #evaluation de la fitness du nouveau genome par simulation
         '''
         ICI : utiliser le code du prof de github qui va generer le nouvel
         environnement.dat utilise par compute_fitness
         '''
-        sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'), 
+        self.genes = self.tmp_genes.copy()
+        self.gen_ancetre = np.array(self.gen)
+        self.update_files()
+        self.dataframes_to_text()
+        a = plt.figure()
+        plt.plot(self.gen)
+        print(self.genes['Strand'])
+        sim.start_transcribing(os.path.join(self.pathToFiles,'params2.ini'), 
                                os.path.join(self.pathToFiles, 'testRes'))
-
+        
         #new_fitness = self.compute_fitness()
         new_fitness = 10
         keep = False
@@ -289,12 +268,11 @@ class Genome():
                 keep = True
         if True:
             #mise a jour des attributs en consequent
-            self.genes = self.tmp_genes.copy()
-            self.gen_ancetre = np.array(self.gen)
-
+            #self.genes = self.tmp_genes.copy()
+            #self.gen_ancetre = np.array(self.gen)
             self.fitness = new_fitness
-            self.update_files()
-            self.dataframes_to_text()
+            #self.update_files()
+            #self.dataframes_to_text()
 
 
     def evolution(self, T):
@@ -313,4 +291,4 @@ g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
 g0.evolution(10)
 
 a = g0.genes
-
+plt.plot(g0.gen)
