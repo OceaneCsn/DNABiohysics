@@ -41,7 +41,7 @@ class Genome():
         self.TSS = pd.read_csv(os.path.join(pathToInitFiles,'TSS.dat'), sep =  '\t')
         self.TTS = pd.read_csv(os.path.join(pathToInitFiles,'TTS.dat'), sep =  '\t')
         self.barrier = pd.read_csv(os.path.join(pathToInitFiles,'prot.dat'), sep =  '\t')
-        self.env = pd.read_csv(os.path.join(pathToInitFiles,'environment.dat'), header = None, sep =  '\t')
+        self.env = pd.read_csv(os.path.join(pathToInitFiles,'environment.dat'), header = None, sep =  '\t') #environment of reference : the goal bacteria wants to achieve to survive
         self.indel_size = indel_size
         self.indelInvRatio = indelInvRatio
 
@@ -163,8 +163,18 @@ class Genome():
             pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
         else:
             pathToFiles = self.pathToFiles
-        new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
-        return np.exp(-sum((new_env.iloc[:,1]-self.env.iloc[:,1])/self.env.iloc[:,1]))
+
+        #new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
+        total_nb_transcrits = self.nb_transcrits().sum()[0]
+        new_env = self.nb_transcrits() * 1.0/total_nb_transcrits
+        #new_env.iloc[:,1] = self.nb_transcrits() * 1.0/total_nb_transcrits
+        #new_env.to_csv('environment.dat', header = None, index = False, sep = '\t', mode = 'w')
+        #new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
+        #new_env = self.nb_transcrits() * 1.0/total_nb_transcrits
+        #return np.exp(-sum((new_env.iloc[:,1]-self.env.iloc[:,1])/self.env.iloc[:,1]))
+        print("The env of the bacteria :\n", new_env)
+        print("The reference :\n", self.env)
+        return np.exp(-sum((new_env.iloc[:,0]-self.env.iloc[:,1])/self.env.iloc[:,1]))
 
     def update_files(self):
         #update barriers positions
@@ -222,7 +232,7 @@ class Genome():
 
         #mutation du genome suivant la probabilite relative
         r = rd.random()
-        '''if(self.indelInvRatio):
+        if(self.indelInvRatio):
             if  r < self.f:
                 if rd.random() < 0.5:
                     self.insertion()
@@ -237,8 +247,7 @@ class Genome():
                 if rd.random() < 0.5:
                     self.insertion()
                 else:
-                    self.deletion()'''
-        self.inversion()
+                    self.deletion()
 
         #evaluation de la fitness du nouveau genome par simulation
         '''
@@ -255,8 +264,9 @@ class Genome():
         sim.start_transcribing(os.path.join(self.pathToFiles,'params2.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
 
-        #new_fitness = self.compute_fitness()
-        new_fitness = 10
+        new_fitness = self.compute_fitness()
+        print("The new fitness is : ", new_fitness)
+        #new_fitness = 10
         keep = False
         #garder le nouveau genome?
         if new_fitness > self.fitness:
@@ -266,7 +276,9 @@ class Genome():
             proba = self.T0*math.exp(-self.T0*t)
             if rd.random() < proba:
                 keep = True
-        if True:
+        #if True:
+        if keep:
+            print("keep = ", keep)
             #mise a jour des attributs en consequent
             #self.genes = self.tmp_genes.copy()
             #self.gen_ancetre = np.array(self.gen)
@@ -274,6 +286,12 @@ class Genome():
             #self.update_files()
             #self.dataframes_to_text()
 
+    #Function to get the number of transcrits per gene
+    def nb_transcrits(self):
+        pathToResFiles = os.path.join(self.pathToFiles, 'testRes')
+        transcrits = pd.read_csv(os.path.join(pathToResFiles, 'save_tr_nbr.csv'), header = None)
+        print("Our number of transcrits per gene:\n", transcrits)
+        return transcrits
 
     def evolution(self, T):
         '''
@@ -293,4 +311,4 @@ g0.evolution(1)
 
 a = g0.genes
 plt.plot(g0.gen)
-plt.show()
+#plt.show()
