@@ -249,10 +249,10 @@ class Genome():
         self.gen_ancetre = np.array(self.gen)
         self.update_files()
         self.dataframes_to_text()
-        a = plt.figure()
-        plt.plot(self.gen)
+        #a = plt.figure()
+        #plt.plot(self.gen)
         print(self.genes['Strand'])
-        sim.start_transcribing(os.path.join(self.pathToFiles,'params2.ini'),
+        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
 
         #new_fitness = self.compute_fitness()
@@ -283,14 +283,11 @@ class Genome():
         for t in range(T):
             self.evolution_step(t)
 
-#pathToFiles = 'D:/ProjetSimADN'
-pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
+pathToFiles = 'D:/ProjetSimADN'
+#pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
 
 #g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
 g0 = Genome(pathToFiles, f = 0.5)
 
-g0.evolution(1)
+g0.evolution(10)
 
-a = g0.genes
-plt.plot(g0.gen)
-plt.show()
