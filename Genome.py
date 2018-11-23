@@ -302,7 +302,8 @@ class Genome():
             self.evolution_step(t)
 
 #pathToFiles = 'D:/ProjetSimADN'
-pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
+#pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
+pathToFiles = '/home/amaury/ProjetSimADN'
 
 #g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
 g0 = Genome(pathToFiles, f = 0.5)
@@ -311,4 +312,4 @@ g0.evolution(1)
 
 a = g0.genes
 plt.plot(g0.gen)
-#plt.show()
+plt.show()
