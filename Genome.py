@@ -83,7 +83,7 @@ class Genome():
         self.gen = np.array(list_gen)
 
         #changement du sens des genes dans le dataframe self.genes
-        
+
         for g in self.genes_list:
             if g in self.gen[min(pos1,pos2) : max(pos1, pos2)]:
                 #print(g, 'inverted')
@@ -124,8 +124,8 @@ class Genome():
             to_delete = [j for j in range(i + 1, i + gene_length)]
             not_intergenes = not_intergenes[np.invert(np.isin(not_intergenes, to_delete))]
 
-		#Apply a protection field before each non-intergene element : between 
-        #this number and the correpsonding one of not_intergenes, 
+		#Apply a protection field before each non-intergene element : between
+        #this number and the correpsonding one of not_intergenes,
         #none can be deleted
         to_protect_bounds = not_intergenes - self.indel_size
         for i in to_protect_bounds:
@@ -194,7 +194,7 @@ class Genome():
         #orientation dans TSS et TTS
         self.TSS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
         self.TTS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
-        
+
         self.genes.iloc[0,3] = int(self.genes.iloc[0,3])
         self.genes = self.genes.sort_values(by='Start')
         self.TSS = self.TSS.sort_values(by=['TSS_pos'])
@@ -252,9 +252,9 @@ class Genome():
         a = plt.figure()
         plt.plot(self.gen)
         print(self.genes['Strand'])
-        sim.start_transcribing(os.path.join(self.pathToFiles,'params2.ini'), 
+        sim.start_transcribing(os.path.join(self.pathToFiles,'params2.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
-        
+
         #new_fitness = self.compute_fitness()
         new_fitness = 10
         keep = False
@@ -284,11 +284,13 @@ class Genome():
             self.evolution_step(t)
 
 #pathToFiles = 'D:/ProjetSimADN'
-#pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/Init_files/'
-        
-g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
+pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
 
-g0.evolution(10)
+#g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
+g0 = Genome(pathToFiles, f = 0.5)
+
+g0.evolution(1)
 
 a = g0.genes
 plt.plot(g0.gen)
+plt.show()

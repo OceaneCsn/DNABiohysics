@@ -28,6 +28,9 @@ def read_config_file(path):
     config.optionxform = str
     # Update INI file without removing comments
     config = configparser.ConfigParser(allow_no_value=True)
+    if not os.path.exists(path):
+        print("Input file was not found at path %s"%path)
+        sys.exit(1)
     config.read(path)
     return config
 
@@ -45,16 +48,19 @@ def read_config_file_v2(path):
     TSS_file = config.get('INPUTS', 'TSS')
     TTS_file = config.get('INPUTS', 'TTS')
     Prot_file = config.get('INPUTS', 'BARR_FIX')
+
     # get values from the config file
     m = config.getfloat('GLOBAL', 'm')
     sigma_t = config.getfloat('GLOBAL', 'sigma_t')
     epsilon = config.getfloat('GLOBAL', 'epsilon')
+
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
     DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
     DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
     SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
+
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
     TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
@@ -64,6 +70,7 @@ def read_config_file_v2(path):
     x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
     x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     try:
         SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
@@ -74,6 +81,7 @@ def read_config_file_v2(path):
         SIGMA_0 = fsolve(func, sig0_initial_guess)[0]
         if not isinstance(SIGMA_0,float):
             print("Error computing SIGMA_0")
+
     return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, SIM_TIME, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
 """
 
@@ -116,27 +124,156 @@ def rename_gff_cols(gff_df):
     gff_df.columns = names
     return gff_df
 
-# Whether the gene is on the + strand or - strand
-def in_forward(tr_id):
-    if strands[tr_id] == 1. :
-        return True
-    else:
-        return False
+# # Whether the gene is on the + strand or - strand
+# def in_forward(tr_id):
+#     if strands[tr_id] == 1. :
+#         return True
+#     else:
+#         return False
 
-# Get the transciption unit with the list of transcripts
-def get_TU(TUindex_list):
-    TU_dict = col.defaultdict(list)
-    for index, TUindex in enumerate(TUindex_list):
-        TU_dict[TUindex].append(index)
-    return TU_dict
+
+# # Get the transciption unit with the list of transcripts
+# def get_TU(TUindex_list):
+#     TU_dict = col.defaultdict(list)
+#     for index, TUindex in enumerate(TUindex_list):
+#         TU_dict[TUindex].append(index)
+#     return TU_dict
 
 # calculate the initiation rate
 def f_init_rate(tr_prob, sig, sigma_t, epsilon, m):
     tr_prob_sig = tr_prob * np.exp((1/(1+np.exp((sig-sigma_t)/epsilon)))*m)
     return tr_prob_sig
 
-# Get the list of all the possible transcripts
+
+
+# Get the list of all possible transcripts
 def get_tr_info(tss, tts, TU_tts, Kon, Poff):
+    this_TU_tts = []
+    tr_id = []
+    tr_start = []
+    tr_end = []
+    tr_strand = []
+    tr_size = []
+    tr_rate = []
+    sum_Kon = np.sum(Kon)
+
+    j = 0 # trancript id indice
+    for i in tss.index.values: # All TSSs
+        # get the TU of this tss
+        TU_id = tss['TUindex'][i]
+        # the list of TTS that are in the same TU of this tss_id (i)
+        # TU_tts ex : defaultdict(list, {0: [1150, 2350], 1: [6250]})
+        # On prend tt les tts qui existent dans la meme UT du tss choisi
+        this_TU_tts = TU_tts[TU_id] # pour 0 => [1150, 2350]
+        # + or -
+        if tss['TUorient'][i] == '+' :
+            # go right
+            k = 0 # TTS id index : k start from the first position of each TU
+            proba_rest = 1
+            while proba_rest > 0 :
+                if tss['TSS_pos'][i] < this_TU_tts[k]:
+                    tr_id.append(j)
+                    tr_strand.append(1)
+                    tr_start.append(tss['TSS_pos'][i])
+                    # after getting the TSSs, we shall (in every loop) generate a new tr_end
+                    tr_end.append(this_TU_tts[k])
+                    # the probability to choose a specific transcript
+                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
+                    proba_rest = (1 - Poff[k]) * proba_rest
+                    j += 1
+                k += 1
+        else:
+            # go left
+            k = 0
+            proba_rest = 1
+            while proba_rest > 0 and k < len(this_TU_tts) :
+                if this_TU_tts[k] < tss['TSS_pos'][i] :
+                    tr_id.append(j)
+                    tr_strand.append(-1)
+                    tr_start.append(tss['TSS_pos'][i])
+                    # after getting them, we shall (in every loop) generate a new tr_end
+                    tr_end.append(this_TU_tts[i])
+                    # the probability to choose a specific transcript
+                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
+                    proba_rest = (1 - Poff[k]) * proba_rest
+                    j += 1
+                k += 1
+    tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
+    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int64)
+    ts_remain_all = np.around(tr_size)
+    return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
+
+
+
+
+
+
+
+
+# Get the list of all possible transcripts
+def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
+    this_TU_tts = []
+    tr_id = []
+    tr_start = []
+    tr_end = []
+    tr_strand = []
+    tr_size = []
+    tr_rate = []
+    sum_Kon = np.sum(Kon)
+
+    j = 0 # trancript id indice
+    for i in tss.index.values: # All TSSs
+        # get the TU of this tss
+        TU_id = tss['TUindex'][i]
+        # the list of TTS that are in the same TU of this tss_id (i)
+        # TU_tts ex : defaultdict(list, {0: [1150, 2350], 1: [6250]})
+        # On prend tt les tts qui existent dans la meme UT du tss choisi
+        this_TU_tts = TU_tts[TU_id] # pour 0 => [1150, 2350]
+        # + or -
+        if tss['TUorient'][i] == '+' :
+            # go right
+            k = TU_id # TTS id index : k start from the first position of each TU
+            proba_rest = 1
+            while proba_rest > 0 :
+                if tss['TSS_pos'][i] < tts['TTS_pos'][k]:
+                    tr_id.append(j)
+                    tr_strand.append(1)
+                    tr_start.append(tss['TSS_pos'][i])
+                    # after getting the TSSs, we shall (in every loop) generate a new tr_end
+                    tr_end.append(tts['TTS_pos'][i])
+                    # the probability to choose a specific transcript
+                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
+                    proba_rest = (1 - Poff[k]) * proba_rest
+                    j += 1
+                k += 1
+        else:
+            # go left
+            k = 0
+            proba_rest = 1
+            while proba_rest > 0 and k < len(this_TU_tts) :
+                if tts['TTS_pos'][k] < tss['TSS_pos'][i] :
+                    tr_id.append(j)
+                    tr_strand.append(-1)
+                    tr_start.append(tss['TSS_pos'][i])
+                    # after getting them, we shall (in every loop) generate a new tr_end
+                    tr_end.append(tts["TTS_pos"][i])
+                    # the probability to choose a specific transcript
+                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
+                    proba_rest = (1 - Poff[k]) * proba_rest
+                    j += 1
+                k += 1
+    tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
+    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int64)
+    ts_remain_all = np.around(tr_size)
+    return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
+
+
+
+
+
+
+# Get the list of all possible transcripts
+def get_tr_info_old(tss, tts, TU_tts, Kon, Poff):
     this_TU_tts = []
     tr_id = []
     tr_start = []
@@ -267,14 +404,17 @@ def save_files(output_path,
 def start_transcribing(INI_file, first_output_path=None, resume_output_path=None, resume=False):
 
     """Example function with types documented in the docstring.
+
     `PEP 484`_ type annotations are supported. If attribute, parameter, and
     return types are annotated according to `PEP 484`_, they do not need to be
     included in the docstring:
+
     Args:
         INI_file (str): The path to the parameter file.
         first_output_path (str, optional): The path in which all the generated files (when) will be saved.
         resume_output_path (str, optional): The path in which all the generated files (when resuming) will be saved.
         resume (bool, optional): Whether this function is used to resume an already done simulation or not.
+
     Returns:
         GFF_file : Relative path to the GFF file
         TSS_file : Relative path to the TSS file
@@ -293,6 +433,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         save_Barr_pos : Contains the barriers positions (whether Barr_fix or RNAPol)
         cov_bp : Coverage
         tr_end : The end (position) of transcripts
+
     """
 
     ###########################################################
@@ -363,6 +504,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     gff_df = rename_gff_cols(gff_df_raw)
 
     # Dict of transciption units with the list of tts belonging to TU.
+    # One TU starts from a single TSS but can have several TTS...
     TU_tts = get_TU_tts(tss, tts)
 
     # The RNAPs id
@@ -371,11 +513,12 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # RNAPs_last_pos
     RNAPs_last_pos = np.full(RNAPS_NB, NaN)
 
-    # get the strands orientation
-    strands = str2num(gff_df['strand'].values)
+    ## get the strands orientation
+    # strands = str2num(gff_df['strand'].values)
 
     # list of all possible transcripts
-    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info(tss, tts, TU_tts, Kon, Poff)
+    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff)
+    print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
     # convert all variables to numpy array
     tr_id = np.array(tr_id)
     tr_strand = np.array(tr_strand)
@@ -532,17 +675,20 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     cov_bp = np.resize(cov_bp, genome)
 
     # save the time when RNApoly is starting trasncribing a specific transcript
-    tr_times = col.defaultdict(list)
+    #tr_times = col.defaultdict(list)
+    tr_times={}
+    for transcript in tr_id:
+        tr_times[transcript]=[]
 
     # numpy array where all RNAPs info will be saved except the nbr_RNAPs_hooked
-    save_RNAPs_info = np.full([RNAPS_NB, 2, int(SIM_TIME/DELTA_T)], np.nan) # nbr d'ele (cols)
+    save_RNAPs_info = np.full([RNAPS_NB, 2, int(SIM_TIME/(DELTA_T*OUTPUT_STEP))], np.nan) # nbr d'ele (cols)
 
     # this array will contain the number of RNAPs hooked at each time step
     # the length of the array is equivalent to the simulation length
-    save_nbr_RNAPs_hooked = np.full(int(SIM_TIME/DELTA_T), np.nan)
+    save_nbr_RNAPs_hooked = np.full(int(SIM_TIME/(DELTA_T*OUTPUT_STEP)), np.nan)
 
     # the same for transcripts info
-    save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan)
+    save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/(DELTA_T*OUTPUT_STEP))], np.nan)
 
     # # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
     save_Dom_sigma = list()
@@ -811,19 +957,19 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             mean_sig_wholeGenome = (Barr_sigma[0]+Barr_sigma[1])/2
 
         # Update the initiation rate
-        
         init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
 
         if t%OUTPUT_STEP == 0:
+            tt=int(t//OUTPUT_STEP)
             # save all informations to npz file
             # RNAPs_info
-            save_RNAPs_info[:, 0, t] = RNAPs_tr
-            save_RNAPs_info[:, 1, t] = RNAPs_pos
+            save_RNAPs_info[:, 0, tt] = RNAPs_tr
+            save_RNAPs_info[:, 1, tt] = RNAPs_pos
             # save the number of hooked RNAPs
-            save_nbr_RNAPs_hooked[t] = np.size(RNAPs_hooked_id)
+            save_nbr_RNAPs_hooked[tt] = np.size(RNAPs_hooked_id)
             # tr_info
-            save_tr_info[:, 0, t] = tr_nbr
-            save_tr_info[:, 1, t] = init_rate
+            save_tr_info[:, 0, tt] = tr_nbr
+            save_tr_info[:, 1, tt] = init_rate
 
         save_Dom_sigma.append(Barr_sigma)
         save_Dom_size.append(Dom_size)
