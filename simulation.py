@@ -518,7 +518,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
 
     # list of all possible transcripts
     tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff)
-    print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
+    #print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
     # convert all variables to numpy array
     tr_id = np.array(tr_id)
     tr_strand = np.array(tr_strand)

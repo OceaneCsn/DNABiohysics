@@ -15,6 +15,7 @@ import numpy as np
 import random as rd
 import math
 import simulation as sim
+from collections import OrderedDict
 
 class Genome():
 
@@ -44,6 +45,7 @@ class Genome():
         self.env = pd.read_csv(os.path.join(pathToInitFiles,'environment.dat'), header = None, sep =  '\t') #environment of reference : the goal bacteria wants to achieve to survive
         self.indel_size = indel_size
         self.indelInvRatio = indelInvRatio
+        
 
     def create_genome(self):
         #create a linear genome
@@ -62,7 +64,13 @@ class Genome():
             genome[b] = 'b'
         #defines the current genome
         self.gen_ancetre = np.array(list(genome))
-        self.fitness = self.compute_fitness(init = True)
+        self.gen = np.array(self.gen_ancetre)
+        self.update_files(self.genes)
+        self.dataframes_to_text()
+        sim.start_transcribing(os.path.join(pathToFiles,'params.ini'),
+                               os.path.join(self.pathToFiles, 'testRes'))
+        self.fitness = self.compute_fitness()
+        self.fitnesses.append(self.fitness)
         self.tmp_genes = self.genes.copy()
         return self.gen_ancetre
 
@@ -115,7 +123,7 @@ class Genome():
         not_intergenes = np.where(self.gen != 'i')[0]
         genes_name = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10']
         gene_length = 1000
-
+        print("deletion")
 		#Only keep the beginning of the genes
         get_genes_starts = []
         for i in genes_name:
@@ -148,11 +156,11 @@ class Genome():
 
         #Remove
         if(del_pos > self.gen.size - self.indel_size):
-            print("Positions deleted : ", range(del_pos, self.gen.size), " and ", range(0, self.indel_size - (self.gen.size - del_pos)))
+            #print("Positions deleted : ", range(del_pos, self.gen.size), " and ", range(0, self.indel_size - (self.gen.size - del_pos)))
             self.gen = np.delete(self.gen, range(del_pos, self.gen.size))
             self.gen = np.delete(self.gen, range(0, self.indel_size - (self.gen.size - del_pos)))
         else:
-            print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
+            #print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
             self.gen = np.delete(self.gen, range(del_pos, del_pos + self.indel_size))
 
         return self.gen
@@ -161,6 +169,7 @@ class Genome():
 
         if init:
             pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
+            
         else:
             pathToFiles = self.pathToFiles
 
@@ -172,50 +181,46 @@ class Genome():
         #new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
         #new_env = self.nb_transcrits() * 1.0/total_nb_transcrits
         #return np.exp(-sum((new_env.iloc[:,1]-self.env.iloc[:,1])/self.env.iloc[:,1]))
-        print("The env of the bacteria :\n", new_env)
-        print("The reference :\n", self.env)
+        #print("The env of the bacteria :\n", new_env)
+        #print("The reference :\n", self.env)
         return np.exp(-sum((new_env.iloc[:,0]-self.env.iloc[:,1])/self.env.iloc[:,1]))
 
-    def update_files(self):
+    def update_files(self, genesDf):
         #update barriers positions
-        self.barrier['prot_pos'] = np.where(self.gen_ancetre == 'b')[0]
+        self.barrier['prot_pos'] = np.where(self.gen == 'b')[0]
 
         #update TSS and TTS
         for g in self.genes_list:
-            tmp = np.where(self.gen_ancetre==g)[0]
+            tmp = np.where(self.gen==g)[0]
             tss = tmp[0]
             tts = tmp[-1]
-            if self.genes['Strand'].iloc[self.genes_TU[g]+1,] == '-':
+            if genesDf['Strand'].iloc[self.genes_TU[g]+1,] == '-':
                 temp = tss
                 tss = tts
                 tts = temp
             self.TSS.iloc[self.genes_TU[g], 2] = tss
             self.TTS.iloc[self.genes_TU[g], 2] = tts
-            #print('Barriers in gene : ')
-            #for b in self.barrier['prot_pos']:
-             #   if b < max(tts, tss) and b > min(tts, tss):
-              #      print("buuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuug : ", b)
 
         #update genes size, tss and tts
-        self.genes.iloc[0,4] = self.gen_ancetre.size
-        self.genes.iloc[1:,3] = list(self.TSS["TSS_pos"])
-        self.genes.iloc[1:,4] = list(self.TTS["TTS_pos"])
+        genesDf.iloc[0,4] = self.gen.size
+        genesDf.iloc[1:,3] = list(self.TSS["TSS_pos"])
+        genesDf.iloc[1:,4] = list(self.TTS["TTS_pos"])
 
         #orientation dans TSS et TTS
-        self.TSS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
-        self.TTS['TUorient'] = list(self.genes['Strand'].iloc[1:,])
+        self.TSS['TUorient'] = list(genesDf['Strand'].iloc[1:,])
+        self.TTS['TUorient'] = list(genesDf['Strand'].iloc[1:,])
 
-        self.genes.iloc[0,3] = int(self.genes.iloc[0,3])
-        self.genes = self.genes.sort_values(by='Start')
+        genesDf.iloc[0,3] = int(genesDf.iloc[0,3])
+        genesDf = genesDf.sort_values(by='Start')
         self.TSS = self.TSS.sort_values(by=['TSS_pos'])
         self.TTS = self.TTS.sort_values(by=['TTS_pos'])
         #print(self.TSS['TSS_pos'], self.TTS['TTS_pos'])
         #self.barrier.sort_index(by = ['prot_pos'])
         #tout mis a jour dans data
-        self.data.iloc[4,4] = self.gen_ancetre.size
+        self.data.iloc[4,4] = self.gen.size
         self.data.iloc[5:,3] = list(self.TSS["TSS_pos"])
         self.data.iloc[5:,4] = list(self.TTS["TTS_pos"])
-        self.data['Strand'].iloc[5:,] = list(self.genes['Strand'].iloc[1:,])
+        self.data['Strand'].iloc[5:,] = list(genesDf['Strand'].iloc[1:,])
 
     def dataframes_to_text(self):
         '''
@@ -235,32 +240,36 @@ class Genome():
         if(self.indelInvRatio):
             if  r < self.f:
                 if rd.random() < 0.5:
+                    event = 'insertion'
                     self.insertion()
                 else:
                     self.deletion()
+                    event = 'deletion'
             else:
                 self.inversion()
+                event = 'inversion'
         else:
             if  r < self.f:
                 self.inversion()
+                event = 'inversion'
             else:
                 if rd.random() < 0.5:
+                    event = 'insertion'
                     self.insertion()
                 else:
                     self.deletion()
+                    event = 'deletion'
 
         #evaluation de la fitness du nouveau genome par simulation
         '''
         ICI : utiliser le code du prof de github qui va generer le nouvel
         environnement.dat utilise par compute_fitness
         '''
-        self.genes = self.tmp_genes.copy()
-        self.gen_ancetre = np.array(self.gen)
-        self.update_files()
+        
+        self.update_files(self.tmp_genes)
         self.dataframes_to_text()
         #a = plt.figure()
         #plt.plot(self.gen)
-        print(self.genes['Strand'])
         sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
 
@@ -276,30 +285,53 @@ class Genome():
             proba = self.T0*math.exp(-self.T0*t)
             if rd.random() < proba:
                 keep = True
-        #if True:
+        print("old fit : ", self.fitness, " new fi : ", new_fitness, " keep = ", keep)
         if keep:
             print("keep = ", keep)
             #mise a jour des attributs en consequent
-            #self.genes = self.tmp_genes.copy()
-            #self.gen_ancetre = np.array(self.gen)
+            self.genes = self.tmp_genes.copy()
+            self.gen_ancetre = np.array(self.gen)
             self.fitness = new_fitness
-            #self.update_files()
-            #self.dataframes_to_text()
+            self.events.append((t,event))
+        self.fitnesses.append(self.fitness)
 
     #Function to get the number of transcrits per gene
     def nb_transcrits(self):
         pathToResFiles = os.path.join(self.pathToFiles, 'testRes')
         transcrits = pd.read_csv(os.path.join(pathToResFiles, 'save_tr_nbr.csv'), header = None)
-        print("Our number of transcrits per gene:\n", transcrits)
+        #print("Our number of transcrits per gene:\n", transcrits)
         return transcrits
 
-    def evolution(self, T):
+    def evolution(self, T, show = True):
         '''
         simulates a genome evolution using a Monte Carlo algorithm
         '''
+        self.fitnesses = []
+        self.events = []
         self.create_genome()
         for t in range(T):
             self.evolution_step(t)
+            
+        if show:
+            plt.plot(self.fitnesses, color = 'k')
+
+            for ev in list(self.events):
+                if ev[1] == "insertion":
+                    col = 'green'
+                elif ev[1] == "deletion":
+                    col = 'red'
+                else:
+                    col = 'blue'
+                plt.plot(ev[0],self.fitnesses[ev[0]], 'o', color = col, label = ev[1])
+            plt.title("Fitness of the genome in time")
+            
+            handles, labels = plt.gca().get_legend_handles_labels()
+            by_label = OrderedDict(zip(labels, handles))
+            plt.legend(by_label.values(), by_label.keys())
+            plt.savefig("fitness.png")
+            #plt.legend()
+
+        
 
 pathToFiles = 'D:/ProjetSimADN'
 #pathToFiles = '/home/amaury/ProjetSimADN'
@@ -309,5 +341,5 @@ pathToFiles = 'D:/ProjetSimADN'
 #g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
 g0 = Genome(pathToFiles, f = 0.5)
 
-g0.evolution(10)
+g0.evolution(200)
 
