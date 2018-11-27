@@ -67,7 +67,7 @@ class Genome():
         self.gen = np.array(self.gen_ancetre)
         self.update_files(self.genes)
         self.dataframes_to_text()
-        sim.start_transcribing(os.path.join(pathToFiles,'params.ini'),
+        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInit.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
         self.fitness = self.compute_fitness()
         self.fitnesses.append(self.fitness)
@@ -85,7 +85,7 @@ class Genome():
         print('Inversion de ', min(pos1,pos2), ' a ', max(pos1,pos2))
 
         #inversion des nucleotides
-        inverted = np.flip(self.gen[min(pos1,pos2) : max(pos1, pos2)])
+        inverted = np.flip(self.gen[min(pos1,pos2) : max(pos1, pos2)], axis=0)
         list_gen = self.gen.tolist()
         list_gen[min(pos1,pos2) : max(pos1, pos2)] = inverted.tolist()
         self.gen = np.array(list_gen)
@@ -168,10 +168,10 @@ class Genome():
     def compute_fitness(self, init = False):
 
         if init:
-            pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
+            self.pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
             
         else:
-            pathToFiles = self.pathToFiles
+            self.pathToFiles = self.pathToFiles
 
         #new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
         total_nb_transcrits = self.nb_transcrits().sum()[0]
@@ -270,7 +270,7 @@ class Genome():
         self.dataframes_to_text()
         #a = plt.figure()
         #plt.plot(self.gen)
-        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
+        sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
 
         new_fitness = self.compute_fitness()
@@ -292,7 +292,7 @@ class Genome():
             self.genes = self.tmp_genes.copy()
             self.gen_ancetre = np.array(self.gen)
             self.fitness = new_fitness
-            self.events.append((t,event))
+        self.events.append((t,event))
         self.fitnesses.append(self.fitness)
 
     #Function to get the number of transcrits per gene
@@ -302,7 +302,7 @@ class Genome():
         #print("Our number of transcrits per gene:\n", transcrits)
         return transcrits
 
-    def evolution(self, T, show = True):
+    def evolution(self, T, show = True, fig_name = "fitness.png"):
         '''
         simulates a genome evolution using a Monte Carlo algorithm
         '''
@@ -328,18 +328,32 @@ class Genome():
             handles, labels = plt.gca().get_legend_handles_labels()
             by_label = OrderedDict(zip(labels, handles))
             plt.legend(by_label.values(), by_label.keys())
-            plt.savefig("fitness.png")
+            plt.savefig(fig_name)
             #plt.legend()
 
         
 
-pathToFiles = 'D:/ProjetSimADN'
+#pathToFiles = 'D:/ProjetSimADN'
 #pathToFiles = '/home/amaury/ProjetSimADN'
 #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
 
 
 #g0 = Genome(pathToFiles = 'D:/ProjetSimADN', f = 0.5)
-g0 = Genome(pathToFiles, f = 0.5)
+            
+def heatmap():
+    
+    fs = np.linspace(0.2, 1, num = 5)
+    ts = [0, 0.001,0.01,0.1,0.5,1]
+    res = np.zeros((len(fs), len(ts)))
+    for i,f in enumerate(fs):
+        for j,t in enumerate(ts):
+            print('f : ', f, ' t0 : ', t)
+            g0 = Genome(f = f, T0 = t)
+            g0.evolution(5, show = False)
+            res[i,j] = g0.fitness
+    plt.imshow(res)
+            
+heatmap()
+    
 
-g0.evolution(200)
 
