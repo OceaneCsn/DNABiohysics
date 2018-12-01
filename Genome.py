@@ -74,6 +74,7 @@ class Genome():
         sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInitOce.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
         self.fitness = self.compute_fitness()
+        #self.fitness = 1
         self.fitnesses.append(self.fitness)
         self.tmp_genes = self.genes.copy()
         return self.gen_ancetre
@@ -160,14 +161,28 @@ class Genome():
         #print("del_pos = ", del_pos, " Is del_pos in not_possible ?", del_pos in not_possible)
 
         #Remove
+         
         if(del_pos > self.gen.size - self.indel_size):
+            maxi = self.indel_size - (self.gen.size - del_pos)
+            for b in np.where(self.gen == 'b')[0]:
+                if b in range(0, self.indel_size - (self.gen.size - del_pos)):
+                    maxi = b-1
             #print("Positions deleted : ", range(del_pos, self.gen.size), " and ", range(0, self.indel_size - (self.gen.size - del_pos)))
             self.gen = np.delete(self.gen, range(del_pos, self.gen.size))
-            self.gen = np.delete(self.gen, range(0, self.indel_size - (self.gen.size - del_pos)))
+            self.gen = np.delete(self.gen, range(0, maxi))
+            
+                    
+            print("deletion at ", del_pos, 'entre ', del_pos, ' et ', self.indel_size - (self.gen.size - del_pos) )
         else:
             #print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
-            self.gen = np.delete(self.gen, range(del_pos, del_pos + self.indel_size))
-        print("deletion at ", del_pos)
+            mini = del_pos
+            for b in np.where(self.gen == 'b')[0]:
+                if b in range(del_pos, del_pos + self.indel_size+1):
+                    print('bariere supprimee!!!!!!!!!!!!!!!!!!!!!!', b, 'entre ', del_pos, ' et ', del_pos+self.indel_size )
+                    if b == mini:
+                        mini = b+1
+            self.gen = np.delete(self.gen, range(mini, del_pos + self.indel_size))
+            print("deletion at ", del_pos, 'entre ', del_pos, ' et ', del_pos+self.indel_size )
         return self.gen
 
     def compute_fitness(self, init = False):
@@ -192,6 +207,7 @@ class Genome():
 
     def update_files(self, genesDf):
         #update barriers positions
+        print(len(np.where(self.gen == 'b')[0]), ' barrières : ', np.where(self.gen == 'b')[0])
         self.barrier['prot_pos'] = np.where(self.gen == 'b')[0]
 
         #update TSS and TTS
@@ -273,7 +289,8 @@ class Genome():
                                os.path.join(self.pathToFiles, 'testRes'))
 
         new_fitness = self.compute_fitness()
-        keep = False
+        #new_fitness = 1
+        keep = True
         #garder le nouveau genome?
         if new_fitness > self.fitness:
             keep = True
@@ -288,7 +305,7 @@ class Genome():
         else:
             self.delta_fitness[event].append(self.fitness-new_fitness)
         if keep:
-            print("keep = ", keep)
+            #print("keep = ", keep)
             #mise a jour des attributs en consequent
             self.genes = self.tmp_genes.copy()
             self.gen_ancetre = np.array(self.gen)
