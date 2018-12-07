@@ -68,7 +68,7 @@ class Genome():
         self.gen = np.array(self.gen_ancetre)
         self.update_files(self.genes)
         self.dataframes_to_text()
-        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInitOce.ini'),
+        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInit.ini'),
                                os.path.join(self.pathToFiles, 'testRes'))
         self.fitness = self.compute_fitness()
         #self.fitness = 1
@@ -283,7 +283,7 @@ class Genome():
         self.dataframes_to_text()
         try:
             keep = False
-            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
+            sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
                                    os.path.join(self.pathToFiles, 'testRes'))
             new_fitness = self.compute_fitness()
             #new_fitness = 1
@@ -376,7 +376,8 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep):
             pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
         return (res, xs, ys, X, Y)
 
-pathToFiles = 'D:/ProjetSimADN'
+#pathToFiles = 'D:/ProjetSimADN'
+pathToFiles = '~/users/OceaneAmauryJulie/ProjetSimADN'
 g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
 g0.evolution(5, dump = True)
 
