@@ -377,7 +377,7 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep):
         return (res, xs, ys, X, Y)
 
 #pathToFiles = 'D:/ProjetSimADN'
-pathToFiles = '~/users/OceaneAmauryJulie/ProjetSimADN'
+pathToFiles = '/users/OceaneAmauryJulie/ProjetSimADN'
 g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
 g0.evolution(5, dump = True)
 
