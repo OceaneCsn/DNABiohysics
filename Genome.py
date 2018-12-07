@@ -12,17 +12,15 @@ génome dans lequel nous allons effectuer des modifications évolutives dans
 l’objectif de tester l’adaptation de réseaux de régulation transcriptionnels.
 
 """
-import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import numpy as np
 import random as rd
 import math
-import simulation as sim
-from collections import OrderedDict
+import simulation2 as sim
+import pickle
 
 class Genome():
-
 
     def __init__(self, pathToFiles = '/home/ocassan/ProjetSimADN', f=0.8, indel_size = 60, indelInvRatio = True, T0 = 0.1):
         '''
@@ -49,7 +47,6 @@ class Genome():
         self.env = pd.read_csv(os.path.join(pathToInitFiles,'environment.dat'), header = None, sep =  '\t') #environment of reference : the goal bacteria wants to achieve to survive
         self.indel_size = indel_size
         self.indelInvRatio = indelInvRatio
-        
 
     def create_genome(self):
         #create a linear genome
@@ -141,7 +138,7 @@ class Genome():
 		#Apply a protection field before each non-intergene element : between
         #this number and the correpsonding one of not_intergenes,
         #none can be deleted
-        to_protect_bounds = not_intergenes - self.indel_size
+        to_protect_bounds = not_intergenes - self.indel_size*2
         for i in to_protect_bounds:
             if i < 0:
                 to_protect_bounds = np.append(to_protect_bounds, [self.gen.size + i, 0])
@@ -207,7 +204,7 @@ class Genome():
 
     def update_files(self, genesDf):
         #update barriers positions
-        print(len(np.where(self.gen == 'b')[0]), ' barrières : ', np.where(self.gen == 'b')[0])
+        #print(len(np.where(self.gen == 'b')[0]), ' barrières : ', np.where(self.gen == 'b')[0])
         self.barrier['prot_pos'] = np.where(self.gen == 'b')[0]
 
         #update TSS and TTS
@@ -255,7 +252,6 @@ class Genome():
 
 
     def evolution_step(self, t):
-
         #mutation du genome suivant la probabilite relative
         r = rd.random()
         inv_size = 0
@@ -285,33 +281,39 @@ class Genome():
         #evaluation de la fitness du nouveau genome par simulation        
         self.update_files(self.tmp_genes)
         self.dataframes_to_text()
-        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
-                               os.path.join(self.pathToFiles, 'testRes'))
-
-        new_fitness = self.compute_fitness()
-        #new_fitness = 1
-        keep = True
-        #garder le nouveau genome?
-        if new_fitness > self.fitness:
-            keep = True
-        else:
-            #on tire la probabilite dans une loi exponentielle
-            proba = self.T0*math.exp(-self.T0*t)
-            if rd.random() < proba:
+        try:
+            keep = False
+            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
+                                   os.path.join(self.pathToFiles, 'testRes'))
+            new_fitness = self.compute_fitness()
+            #new_fitness = 1
+            
+            #garder le nouveau genome?
+            if new_fitness > self.fitness:
                 keep = True
-        print("old fit : ", self.fitness, " new fi : ", new_fitness, " keep = ", keep)
-        if event == 'inversion':
-            self.delta_fitness[event].append((self.fitness-new_fitness, inv_size))
-        else:
-            self.delta_fitness[event].append(self.fitness-new_fitness)
-        if keep:
-            #print("keep = ", keep)
-            #mise a jour des attributs en consequent
-            self.genes = self.tmp_genes.copy()
-            self.gen_ancetre = np.array(self.gen)
-            self.fitness = new_fitness
-        self.events.append((t,event))
-        self.fitnesses.append(self.fitness)
+            else:
+                #on tire la probabilite dans une loi exponentielle
+                proba = self.T0*math.exp(-self.T0*t)
+                if rd.random() < proba:
+                    keep = True
+            #print("old fit : ", self.fitness, " new fi : ", new_fitness, " keep = ", keep)
+            if event == 'inversion':
+                self.delta_fitness[event].append((self.fitness-new_fitness, inv_size))
+            else:
+                self.delta_fitness[event].append(self.fitness-new_fitness)
+            if keep:
+                #print("keep = ", keep)
+                #mise a jour des attributs en consequent
+                self.genes = self.tmp_genes.copy()
+                self.gen_ancetre = np.array(self.gen)
+                self.fitness = new_fitness
+            self.events.append((t,event))
+            self.fitnesses.append(self.fitness)
+        
+        except ValueError:
+            print('Genes cotes a cotes dans simulation....')
+            #plt.figure()
+            #plt.plot(self.gen)
 
     #Function to get the number of transcrits per gene
     def nb_transcrits(self):
@@ -320,7 +322,7 @@ class Genome():
         #print("Our number of transcrits per gene:\n", transcrits)
         return transcrits
 
-    def evolution(self, T):
+    def evolution(self, T, dump = False):
         '''
         simulates a genome evolution using a Monte Carlo algorithm
         '''
@@ -330,81 +332,57 @@ class Genome():
         self.create_genome()
         for t in range(T):
             self.evolution_step(t)
-            
-    
-    def plot_fitness(self, fig_name = "fitness.png"): 
-        #shows the fitness evolution in time
-        #with the events as coloured circles on the curve
-        plt.figure()
-        plt.plot(self.fitnesses, color = 'k')
-        for ev in list(self.events):
-            if ev[1] == "insertion":
-                col = 'green'
-            elif ev[1] == "deletion":
-                col = 'red'
-            else:
-                col = 'blue'
-            plt.plot(ev[0],self.fitnesses[ev[0]], 'o', color = col, label = ev[1])
-        plt.title("Fitness of the genome in time")
+        if dump:
+            path = os.path.join(self.pathToFiles, 'Binary_files')
+            with open(os.path.join(path, 'genome.file'), "wb") as f:
+                pickle.dump(g0, f, pickle.HIGHEST_PROTOCOL)
         
-        handles, labels = plt.gca().get_legend_handles_labels()
-        by_label = OrderedDict(zip(labels, handles))
-        plt.legend(by_label.values(), by_label.keys())
-        plt.savefig(fig_name)
             
-    def plot_hist(self, event, fig_name = "hist.png"):
-        #plots the histogram of the fitness change induced by the 
-        #mutational events
-        plt.figure()
-        plt.hist(self.delta_fitness[event], bins = 20)
     
-    def plot_inv_size_fitness(self):
-        plt.figure()
-        delta = self.delta_fitness['inversion']
-        plt.plot([d[1] for d in delta], [d[0] for d in delta], 'o')
+def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep):
+    
+    xs = np.linspace(x_min, x_max, num = n_x)
+    ys = np.linspace(y_min, y_max, num = n_y)
+    #ys = [0, 0.001,0.005, 0.01,0.05, 0.1, 0.5, 1]
+    res = np.zeros((len(xs), len(ys)))
+    cpt = 0
+    for i, x in enumerate(xs):
+        f = 0.5
+        t0 = 0.1
+        indel_size = 60
+        if X == 'f':
+            f = x
+        if X == 'T0':
+            t0 = x
+        if X == 'indel_size':
+            indel_size = x
+        for j,y in enumerate(ys):
+            mean_fitness = 0
+            if Y == 'f':
+                f = y
+            if Y == 'T0':
+                t0 = y
+            if Y == 'indel_size':
+                indel_size = y
+            for r in range(nRep):
+                print(cpt, '/', len(ys)*len(xs)*nRep ,', ',X,' : ', x, ', ', Y,' : ', y)
+                g0 = Genome(pathToFiles = pathToFiles, f = f, T0 = t0, indel_size=int(indel_size))
+                g0.evolution(5)
+                mean_fitness += g0.fitness
+                cpt+=1
+            res[len(xs)-i-1,j] = 1.0*mean_fitness/nRep
+        path = os.path.join(pathToFiles, 'Binary_files')
+        with open(os.path.join(path, 'heatmap_files.file'), "wb") as f:
+            pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
+        return (res, xs, ys, X, Y)
 
 pathToFiles = 'D:/ProjetSimADN'
+g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
+g0.evolution(5, dump = True)
+
+#heatmap('f', 0, 1, 5, 'T0', 0, 1, 4, nRep = 1)
+
 #pathToFiles = '/home/ocassan/ProjetSimADN'
 #pathToFiles = '/home/amaury/ProjetSimADN'
 #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
 
-
-'''g0 = Genome(pathToFiles = pathToFiles, f = 0.9, T0 = 0.1)
-g0.evolution(60)
-g0.plot_fitness()
-g0.plot_hist('deletion')
-g0.plot_hist('insertion')
-def autocorr(x, t=1):
-    return np.corrcoef(np.array([x[0:len(x)-t], x[t:len(x)]]))
-autocorr(np.array(g0.fitnesses))
-#g0.plot_inv_size_fitness()'''
-
-            
-def heatmap():
-    
-    fs = np.linspace(0.2, 1, num = 5)
-    ts = [0, 0.001,0.01,0.1,0.5,1]
-    res = np.zeros((len(fs), len(ts)))
-    for i,f in enumerate(fs):
-        for j,t in enumerate(ts):
-            print('f : ', f, ' t0 : ', t)
-            g0 = Genome(pathToFiles = pathToFiles, f = f, T0 = t)
-            g0.evolution(50)
-            res[len(fs)-i-1,j] = g0.fitness
-    fig, ax = plt.subplots()
-    im = ax.imshow(res)
-    
-    # We want to show all ticks...
-    ax.set_yticks(np.arange(len(fs)))
-    ax.set_xticks(np.arange(len(ts)))
-    # ... and label them with the respective list entries
-    ax.set_yticklabels(list(reversed([round(f) for f in fs])))
-    ax.set_xticklabels(ts)
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-             rotation_mode="anchor")
-    ax.set_title("Heatmap of the last fitness value for different T0 and f")
-    fig.tight_layout()
-    return res
-            
-res = heatmap()
