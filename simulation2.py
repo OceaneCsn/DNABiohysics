@@ -396,7 +396,7 @@ def save_files(output_path,
 #         Transcription Process (Simulation)              #
 ###########################################################
 
-def start_transcribing(INI_file, first_output_path=None, resume_output_path=None, resume=False):
+def start_transcribing(INI_file, first_output_path=None, nb_pol = None, resume_output_path=None, resume=False):
 
     """Example function with types documented in the docstring.
     `PEP 484`_ type annotations are supported. If attribute, parameter, and
@@ -451,7 +451,11 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
 
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
     SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
-    RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
+    if nb_pol == None:
+        RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
+    else:
+        RNAPS_NB = nb_pol
+    #print('pol : ', RNAPS_NB)
     SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')

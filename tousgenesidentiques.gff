@@ -2,14 +2,14 @@
 #!gff-spec-version 1.20								
 #!processor NCBI annotwriter								
 ##sequence-region tousgenesidentiques 1 30000								
-tousgenesidentiques	RefSeq	region	1	29940	.	+	.	ID=id0;Name=tousgenesidentiques
+tousgenesidentiques	RefSeq	region	1	30000	.	+	.	ID=id0;Name=tousgenesidentiques
 tousgenesidentiques	RefSeq	gene	1001	2000	.	+	.	ID=g1;Name=g1
-tousgenesidentiques	RefSeq	gene	4001	5000	.	+	.	ID=g1;Name=g2
-tousgenesidentiques	RefSeq	gene	8236	7237	.	-	.	ID=g1;Name=g3
-tousgenesidentiques	RefSeq	gene	11236	10237	.	-	.	ID=g1;Name=g4
-tousgenesidentiques	RefSeq	gene	14236	13237	.	-	.	ID=g1;Name=g5
-tousgenesidentiques	RefSeq	gene	17236	16237	.	-	.	ID=g1;Name=g6
-tousgenesidentiques	RefSeq	gene	20236	19237	.	-	.	ID=g1;Name=g7
-tousgenesidentiques	RefSeq	gene	23236	22237	.	-	.	ID=g1;Name=g8
-tousgenesidentiques	RefSeq	gene	26236	25237	.	-	.	ID=g1;Name=g9
-tousgenesidentiques	RefSeq	gene	27941	28940	.	+	.	ID=g1;Name=g10
+tousgenesidentiques	RefSeq	gene	3226	4225	.	+	.	ID=g1;Name=g2
+tousgenesidentiques	RefSeq	gene	6226	7225	.	+	.	ID=g1;Name=g3
+tousgenesidentiques	RefSeq	gene	9226	10225	.	+	.	ID=g1;Name=g4
+tousgenesidentiques	RefSeq	gene	12226	13225	.	+	.	ID=g1;Name=g5
+tousgenesidentiques	RefSeq	gene	15226	16225	.	+	.	ID=g1;Name=g6
+tousgenesidentiques	RefSeq	gene	18226	19225	.	+	.	ID=g1;Name=g7
+tousgenesidentiques	RefSeq	gene	21226	22225	.	+	.	ID=g1;Name=g8
+tousgenesidentiques	RefSeq	gene	25958	24959	.	-	.	ID=g1;Name=g9
+tousgenesidentiques	RefSeq	gene	28001	29000	.	+	.	ID=g1;Name=g10

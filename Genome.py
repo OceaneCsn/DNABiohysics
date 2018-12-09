@@ -22,7 +22,7 @@ import pickle
 
 class Genome():
 
-    def __init__(self, pathToFiles = '/home/ocassan/ProjetSimADN', f=0.8, indel_size = 60, indelInvRatio = True, T0 = 0.1):
+    def __init__(self, pathToFiles = '/home/ocassan/ProjetSimADN', nb_pol = None, f=0.8, indel_size = 60, indelInvRatio = True, T0 = 0.1):
         '''
         Creates a genome.
         The genome is initialized with the files in the folder pathToFiles
@@ -47,6 +47,7 @@ class Genome():
         self.env = pd.read_csv(os.path.join(pathToInitFiles,'environment.dat'), header = None, sep =  '\t') #environment of reference : the goal bacteria wants to achieve to survive
         self.indel_size = indel_size
         self.indelInvRatio = indelInvRatio
+        self.nb_pol = nb_pol
 
     def create_genome(self):
         #create a linear genome
@@ -68,8 +69,12 @@ class Genome():
         self.gen = np.array(self.gen_ancetre)
         self.update_files(self.genes)
         self.dataframes_to_text()
-        sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInit.ini'),
-                               os.path.join(self.pathToFiles, 'testRes'))
+        if self.nb_pol == None:
+            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInit.ini'),
+                                   os.path.join(self.pathToFiles, 'testRes'))
+        else:
+            sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
+                                   os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
         self.fitness = self.compute_fitness()
         #self.fitness = 1
         self.fitnesses.append(self.fitness)
@@ -283,8 +288,12 @@ class Genome():
         self.dataframes_to_text()
         try:
             keep = False
-            sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
-                                   os.path.join(self.pathToFiles, 'testRes'))
+            if self.nb_pol == None:
+                sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
+                                       os.path.join(self.pathToFiles, 'testRes'))
+            else:
+                sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
+                                       os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
             new_fitness = self.compute_fitness()
             #new_fitness = 1
             
@@ -307,7 +316,7 @@ class Genome():
                 self.genes = self.tmp_genes.copy()
                 self.gen_ancetre = np.array(self.gen)
                 self.fitness = new_fitness
-            self.events.append((t,event))
+                self.events.append((t,event))
             self.fitnesses.append(self.fitness)
         
         except ValueError:
@@ -319,7 +328,6 @@ class Genome():
     def nb_transcrits(self):
         pathToResFiles = os.path.join(self.pathToFiles, 'testRes')
         transcrits = pd.read_csv(os.path.join(pathToResFiles, 'save_tr_nbr.csv'), header = None)
-        #print("Our number of transcrits per gene:\n", transcrits)
         return transcrits
 
     def evolution(self, T, dump = False):
@@ -336,26 +344,26 @@ class Genome():
             path = os.path.join(self.pathToFiles, 'Binary_files')
             with open(os.path.join(path, 'genome.file'), "wb") as f:
                 pickle.dump(g0, f, pickle.HIGHEST_PROTOCOL)
-        
-            
-    
-def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep):
+
+def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filename = 'heatmap_files.file'):
     
     xs = np.linspace(x_min, x_max, num = n_x)
     ys = np.linspace(y_min, y_max, num = n_y)
-    #ys = [0, 0.001,0.005, 0.01,0.05, 0.1, 0.5, 1]
     res = np.zeros((len(xs), len(ys)))
     cpt = 0
     for i, x in enumerate(xs):
         f = 0.5
         t0 = 0.1
         indel_size = 60
+        nb_pol = None
         if X == 'f':
             f = x
         if X == 'T0':
             t0 = x
         if X == 'indel_size':
             indel_size = x
+        if X == 'Nb_pol':
+            nb_pol = x
         for j,y in enumerate(ys):
             mean_fitness = 0
             if Y == 'f':
@@ -364,26 +372,34 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep):
                 t0 = y
             if Y == 'indel_size':
                 indel_size = y
+            if Y == 'Nb_pol':
+                nb_pol = y
             for r in range(nRep):
                 print(cpt, '/', len(ys)*len(xs)*nRep ,', ',X,' : ', x, ', ', Y,' : ', y)
-                g0 = Genome(pathToFiles = pathToFiles, f = f, T0 = t0, indel_size=int(indel_size))
-                g0.evolution(5)
+                g0 = Genome(pathToFiles=pathToFiles, nb_pol=nb_pol, f=f, T0=t0, indel_size=int(indel_size))
+                g0.evolution(t_sim)
                 mean_fitness += g0.fitness
                 cpt+=1
             res[len(xs)-i-1,j] = 1.0*mean_fitness/nRep
-        path = os.path.join(pathToFiles, 'Binary_files')
-        with open(os.path.join(path, 'heatmap_files.file'), "wb") as f:
-            pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
-        return (res, xs, ys, X, Y)
+    path = os.path.join(pathToFiles, 'Binary_files')
+    with open(os.path.join(path, 'heatmap_files_'+X+'_'+Y+'.file'), "wb") as f:
+        pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
+    return (res, xs, ys, X, Y)
 
 #pathToFiles = 'D:/ProjetSimADN'
-pathToFiles = '/home/biosciences/users/OceaneAmauryJulie/ProjetSimADN'
-g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
-g0.evolution(5, dump = True)
-
-#heatmap('f', 0, 1, 5, 'T0', 0, 1, 4, nRep = 1)
-
 #pathToFiles = '/home/ocassan/ProjetSimADN'
 #pathToFiles = '/home/amaury/ProjetSimADN'
 #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
+
+
+pathToFiles = '/home/biosciences/users/OceaneAmauryJulie/ProjetSimADN'
+#g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
+#g0.evolution(10, dump = True)
+
+
+#nohup command &
+
+heatmap('Nb_pol', 1, 10, 5, 'f', 0, 1, 4, nRep = 1, t_sim = 1)
+
+
 
