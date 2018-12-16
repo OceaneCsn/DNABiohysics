@@ -70,10 +70,10 @@ class Genome():
         self.update_files(self.genes)
         self.dataframes_to_text()
         if self.nb_pol == None:
-            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInit.ini'),
+            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInitOce.ini'),
                                    os.path.join(self.pathToFiles, 'testRes'))
         else:
-            sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
+            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
                                    os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
         self.fitness = self.compute_fitness()
         #self.fitness = 1
@@ -289,10 +289,10 @@ class Genome():
         try:
             keep = False
             if self.nb_pol == None:
-                sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
+                sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
                                        os.path.join(self.pathToFiles, 'testRes'))
             else:
-                sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
+                sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
                                        os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
             new_fitness = self.compute_fitness()
             #new_fitness = 1
@@ -321,6 +321,8 @@ class Genome():
         
         except ValueError:
             print('Genes cotes a cotes dans simulation....')
+        except KeyError:
+            print('keyerror')
             #plt.figure()
             #plt.plot(self.gen)
 
@@ -381,25 +383,25 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filena
                 mean_fitness += g0.fitness
                 cpt+=1
             res[len(xs)-i-1,j] = 1.0*mean_fitness/nRep
-    path = os.path.join(pathToFiles, 'Binary_files')
-    with open(os.path.join(path, 'heatmap_files_'+X+'_'+Y+'.file'), "wb") as f:
-        pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
+        path = os.path.join(pathToFiles, 'Binary_files')
+        with open(os.path.join(path, 'heatmap_files_'+X+'_'+Y+'.file'), "wb") as f:
+            pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
     return (res, xs, ys, X, Y)
 
-#pathToFiles = 'D:/ProjetSimADN'
+pathToFiles = 'D:/ProjetSimADN'
 #pathToFiles = '/home/ocassan/ProjetSimADN'
 #pathToFiles = '/home/amaury/ProjetSimADN'
 #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
 
 
-pathToFiles = '/home/biosciences/users/OceaneAmauryJulie/ProjetSimADN'
+#pathToFiles = '/home/biosciences/users/OceaneAmauryJulie/ProjetSimADN'
 #g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
-#g0.evolution(10, dump = True)
+#g0.evolution(1000, dump = True)
 
 
 #nohup command &
 
-heatmap('Nb_pol', 1, 10, 5, 'f', 0, 1, 4, nRep = 1, t_sim = 1)
+heatmap('indel_size', 60, 540, 9, 'f', 0, 1, 15, nRep = 2, t_sim = 100)
 
 
 

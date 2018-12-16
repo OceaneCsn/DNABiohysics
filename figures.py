@@ -104,7 +104,7 @@ with open(os.path.join(path, 'genome.file'), "rb") as f:
     genome = pickle.load(f)
 #plot_hist(genome, 'insertion')
 
-#heatmap()
+#heatmap('f', 'T0')
 plot_fitness(genome)
 #plot_hist(genome, 'inversion')
 #plot_hists(genome)
