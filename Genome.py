@@ -18,7 +18,12 @@ import numpy as np
 import random as rd
 import math
 import simulation2 as sim
+import matplotlib.pyplot as plt
 import pickle
+from collections import OrderedDict
+from mpl_toolkits.axes_grid1 import make_axes_locatable #to set size of heatmap colorbar
+
+
 
 class Genome():
 
@@ -187,24 +192,21 @@ class Genome():
             print("deletion at ", del_pos, 'entre ', del_pos, ' et ', del_pos+self.indel_size )
         return self.gen
 
-    def compute_fitness(self, init = False):
+    def compute_fitness(self, init = False, new = True):
 
         if init:
             self.pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
-            
         else:
             self.pathToFiles = self.pathToFiles
-
-        #new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
+        if new :
+            total_nb_transcrits = self.nb_transcrits().sum()[0]
+            new_env = self.nb_transcrits() * 1.0/total_nb_transcrits
+            ratio = (new_env.iloc[:,0]*1.0)/(self.env.iloc[:,1]*1.0)
+            fitness_value = np.exp(-sum(np.abs(np.log(ratio))))        
+            return fitness_value
+        
         total_nb_transcrits = self.nb_transcrits().sum()[0]
         new_env = self.nb_transcrits() * 1.0/total_nb_transcrits
-        #new_env.iloc[:,1] = self.nb_transcrits() * 1.0/total_nb_transcrits
-        #new_env.to_csv('environment.dat', header = None, index = False, sep = '\t', mode = 'w')
-        #new_env = pd.read_csv(os.path.join(pathToFiles,'environment.dat'), header = None, sep =  '\t')
-        #new_env = self.nb_transcrits() * 1.0/total_nb_transcrits
-        #return np.exp(-sum((new_env.iloc[:,1]-self.env.iloc[:,1])/self.env.iloc[:,1]))
-        #print("The env of the bacteria :\n", new_env)
-        #print("The reference :\n", self.env)
         return np.exp(-sum((new_env.iloc[:,0]-self.env.iloc[:,1])/self.env.iloc[:,1]))
 
     def update_files(self, genesDf):
@@ -237,6 +239,7 @@ class Genome():
         genesDf = genesDf.sort_values(by='Start')
         self.TSS = self.TSS.sort_values(by=['TSS_pos'])
         self.TTS = self.TTS.sort_values(by=['TTS_pos'])
+        
         #print(self.TSS['TSS_pos'], self.TTS['TTS_pos'])
         #self.barrier.sort_index(by = ['prot_pos'])
         #tout mis a jour dans data
@@ -258,6 +261,7 @@ class Genome():
 
     def evolution_step(self, t):
         #mutation du genome suivant la probabilite relative
+        print('time step ', t)
         r = rd.random()
         inv_size = 0
         if(self.indelInvRatio):
@@ -296,7 +300,6 @@ class Genome():
                                        os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
             new_fitness = self.compute_fitness()
             #new_fitness = 1
-            
             #garder le nouveau genome?
             if new_fitness > self.fitness:
                 keep = True
@@ -317,6 +320,7 @@ class Genome():
                 self.gen_ancetre = np.array(self.gen)
                 self.fitness = new_fitness
                 self.events.append((t,event))
+                print('fitness kept at time ', t, ' with ', event)
             self.fitnesses.append(self.fitness)
         
         except ValueError:
@@ -325,6 +329,8 @@ class Genome():
             print('keyerror')
             #plt.figure()
             #plt.plot(self.gen)
+        except IndexError:
+            print('unknown index error in simulation')
 
     #Function to get the number of transcrits per gene
     def nb_transcrits(self):
@@ -340,12 +346,13 @@ class Genome():
         self.events = []
         self.delta_fitness = {ev:[] for ev in ['insertion', 'deletion', 'inversion']}
         self.create_genome()
+        print(T)
         for t in range(T):
             self.evolution_step(t)
         if dump:
             path = os.path.join(self.pathToFiles, 'Binary_files')
             with open(os.path.join(path, 'genome.file'), "wb") as f:
-                pickle.dump(g0, f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
 def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filename = 'heatmap_files.file'):
     
@@ -357,6 +364,7 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filena
         f = 0.5
         t0 = 0.1
         indel_size = 60
+        time = t_sim
         nb_pol = None
         if X == 'f':
             f = x
@@ -366,6 +374,8 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filena
             indel_size = x
         if X == 'Nb_pol':
             nb_pol = x
+        if X == 't':
+            time = x
         for j,y in enumerate(ys):
             mean_fitness = 0
             if Y == 'f':
@@ -376,10 +386,12 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filena
                 indel_size = y
             if Y == 'Nb_pol':
                 nb_pol = y
+            if Y == 't':
+                time = y
             for r in range(nRep):
                 print(cpt, '/', len(ys)*len(xs)*nRep ,', ',X,' : ', x, ', ', Y,' : ', y)
                 g0 = Genome(pathToFiles=pathToFiles, nb_pol=nb_pol, f=f, T0=t0, indel_size=int(indel_size))
-                g0.evolution(t_sim)
+                g0.evolution(int(time))
                 mean_fitness += g0.fitness
                 cpt+=1
             res[len(xs)-i-1,j] = 1.0*mean_fitness/nRep
@@ -392,16 +404,110 @@ pathToFiles = 'D:/ProjetSimADN'
 #pathToFiles = '/home/ocassan/ProjetSimADN'
 #pathToFiles = '/home/amaury/ProjetSimADN'
 #pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
-
-
 #pathToFiles = '/home/biosciences/users/OceaneAmauryJulie/ProjetSimADN'
-#g0 = Genome(pathToFiles = pathToFiles, f = 0.5)
-#g0.evolution(1000, dump = True)
 
+def plot_hist(delta_fitness, event, fig_name = "hist.png"):
+    #plots the histogram of the fitness change induced by the 
+    #mutational events
+    plt.figure()
+    if event != 'inversion':
+        if event == 'insertion':
+            color = 'green'
+        else:
+            color = 'red'
+        plt.hist(delta_fitness[event], bins = 150, color = color, alpha = 0.8)
+    else:
+        plt.hist( [ev[0] for ev in delta_fitness[event]], color = 'b', alpha = 0.8, bins = 100)
+    plt.title('Histogram of the fitness changes induced by '+event+'s')
+    plt.xlabel('Value of the fitness change')
+    plt.ylabel('Counts')
 
+def fitness_hists(N_gen, T):
+	delta_fitness = {ev:[] for ev in ['insertion', 'deletion', 'inversion']}
+	for n in range(N_gen):
+		g = Genome(pathToFiles = pathToFiles, f = 0.5)
+		g.evolution(T)
+		for ev in list(delta_fitness.keys()):
+			delta_fitness[ev] += g.delta_fitness[ev]
+	plot_hist(delta_fitness, 'inversion')
+	plot_hist(delta_fitness, 'insertion')
+	plot_hist(delta_fitness, 'deletion')
+	plt.show()
+	
+#fitness_hists(50, 50)
+
+#g = Genome(pathToFiles = pathToFiles, f = 0.7)
+#g.evolution(100)
+
+def plot_fitness(genome, fig_name = "fitness.png"): 
+        #shows the fitness evolution in time
+        #with the events as coloured circles on the curve
+        plt.figure()
+        plt.plot(genome.fitnesses, color = 'k')
+        for ev in list(genome.events):
+            if ev[1] == "insertion":
+                col = 'green'
+            elif ev[1] == "deletion":
+                col = 'red'
+            else:
+                col = 'blue'
+            plt.plot(ev[0],genome.fitnesses[ev[0]], 'o', color = col, label = ev[1])
+        plt.title("Fitness of the genome in time")
+        handles, labels = plt.gca().get_legend_handles_labels()
+        by_label = OrderedDict(zip(labels, handles))
+        plt.legend(by_label.values(), by_label.keys())
+        plt.ylabel('Fitness')
+        plt.xlabel('Time')
+        plt.savefig(fig_name)
+        plt.show()
+        
+#plot_fitness(g)
 #nohup command &
 
-heatmap('indel_size', 60, 540, 9, 'f', 0, 1, 15, nRep = 2, t_sim = 100)
+files = heatmap('f', 0, 1, 15, 't', 10, 100, 15, nRep = 2, t_sim = 20)
 
 
+def plot_inv_size_fitness(genome):
+    plt.figure()
+    delta = genome.delta_fitness['inversion']
+    plt.plot([d[1] for d in delta], [d[0] for d in delta], 'o')
+    plt.show()
+    
+#plot_inv_size_fitness(g)
 
+def plot_heatmap(heatmap_files):
+    res = heatmap_files[0]
+    xs = heatmap_files[1]
+    ys = heatmap_files[2]
+    X = heatmap_files[3]
+    Y = heatmap_files[4]
+    
+    print(res)
+    
+    fig, ax = plt.subplots()
+    im = ax.imshow(res)
+    #We want to show all ticks...
+    ax.set_yticks(np.arange(len(xs)))
+    ax.set_xticks(np.arange(len(ys)))
+    # ... and label them with the respective list entries
+    ax.set_yticklabels(list(reversed([round(f, 1) for f in xs])))
+    ax.set_ylabel(X)
+    ax.set_xticklabels([round(f, 1) for f in ys])
+    ax.set_xlabel(Y)
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+    ax.set_title("Heatmap of the last fitness value for different "+X+" and "+Y)
+    fig.tight_layout()
+    
+    #to set size of heatmap color bar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+
+    #to create the color bar
+    cbar = ax.figure.colorbar(im, cax=cax)
+    cbar.ax.set_ylabel("Fitness", rotation=-90, va="bottom")
+    plt.show()
+    plt.savefig('heatmap_small_'+X+'_'+Y+'.png')
+
+plot_heatmap(files)

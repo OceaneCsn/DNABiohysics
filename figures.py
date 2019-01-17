@@ -37,9 +37,13 @@ def plot_fitness(genome, fig_name = "fitness.png"):
         plt.savefig(fig_name)
 
 
-def plot_hist(genome, event, fig_name = "hist.png"):
+def plot_hist(event, fig_name = "hist.png"):
     #plots the histogram of the fitness change induced by the 
     #mutational events
+    
+    path = os.path.join(pathToFiles, 'Binary_files')
+    with open(os.path.join(path, 'genome.file'), "rb") as f:
+        genome = pickle.load(f)
     plt.figure()
     if event != 'inversion':
         plt.hist(genome.delta_fitness[event], bins = 20)
@@ -63,12 +67,6 @@ def plot_hists(genome, fig_name = "hist.png"):
     plt.title('Histogram of the fitness changes induced by '+event+'s')
     plt.xlabel('Fitness difference')
     plt.ylabel('Counts')
-        
-    
-def plot_inv_size_fitness(genome):
-    plt.figure()
-    delta = genome.delta_fitness['inversion']
-    plt.plot([d[1] for d in delta], [d[0] for d in delta], 'o')
 
 def heatmap(X, Y):
     path = os.path.join(pathToFiles, 'Binary_files')
@@ -97,15 +95,16 @@ def heatmap(X, Y):
              rotation_mode="anchor")
     ax.set_title("Heatmap of the last fitness value for different "+X+" and "+Y)
     fig.tight_layout()
-    plt.savefig('heatmap'+X+'_'+Y+'.png')
+    plt.show()
+    plt.savefig('heatmap_small_'+X+'_'+Y+'.png')
 
-path = os.path.join(pathToFiles, 'Binary_files')
-with open(os.path.join(path, 'genome.file'), "rb") as f:
-    genome = pickle.load(f)
+#path = os.path.join(pathToFiles, 'Binary_files')
+#with open(os.path.join(path, 'genome.file'), "rb") as f:
+#    genome = pickle.load(f)
 #plot_hist(genome, 'insertion')
 
 #heatmap('f', 'T0')
-plot_fitness(genome)
-#plot_hist(genome, 'inversion')
+#plot_fitness(genome)
+plot_hist('inversion')
 #plot_hists(genome)
 #plot_inv_size_fitness(genome)
