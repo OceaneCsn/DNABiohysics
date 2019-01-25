@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import pickle
 from collections import OrderedDict
 from mpl_toolkits.axes_grid1 import make_axes_locatable #to set size of heatmap colorbar
-
+from Draft import encode_genome, visualize_genome_fitness
 
 
 class Genome():
@@ -75,13 +75,12 @@ class Genome():
         self.update_files(self.genes)
         self.dataframes_to_text()
         if self.nb_pol == None:
-            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInitOce.ini'),
+            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsInit.ini'),
                                    os.path.join(self.pathToFiles, 'testRes'))
         else:
-            sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
+            sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
                                    os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
         self.fitness = self.compute_fitness()
-        #self.fitness = 1
         self.fitnesses.append(self.fitness)
         self.tmp_genes = self.genes.copy()
         return self.gen_ancetre
@@ -106,9 +105,7 @@ class Genome():
 
         for g in self.genes_list:
             if g in self.gen[min(pos1,pos2) : max(pos1, pos2)]:
-                #print(g, 'inverted')
                 #on regarde ou il faut changer le signe du strand dans self.genes
-                #print('index ',i, ' tu ', self.genes_TU[g])
                 if self.genes['Strand'].iloc[self.genes_TU[g]+1,] == '+':
                     self.tmp_genes['Strand'].iloc[self.genes_TU[g]+1,] = '-'
                 else:
@@ -165,23 +162,17 @@ class Genome():
         possible = np.array([i for i in range(0, self.gen.size)])
         possible = possible[np.invert(np.isin(possible, not_possible))]
         del_pos = rd.choice(possible)
-        #print("del_pos = ", del_pos, " Is del_pos in not_possible ?", del_pos in not_possible)
-
+        
         #Remove
-         
         if(del_pos > self.gen.size - self.indel_size):
             maxi = self.indel_size - (self.gen.size - del_pos)
             for b in np.where(self.gen == 'b')[0]:
                 if b in range(0, self.indel_size - (self.gen.size - del_pos)):
                     maxi = b-1
-            #print("Positions deleted : ", range(del_pos, self.gen.size), " and ", range(0, self.indel_size - (self.gen.size - del_pos)))
             self.gen = np.delete(self.gen, range(del_pos, self.gen.size))
             self.gen = np.delete(self.gen, range(0, maxi))
-            
-                    
             print("deletion at ", del_pos, 'entre ', del_pos, ' et ', self.indel_size - (self.gen.size - del_pos) )
         else:
-            #print("Positions deleted : ", range(del_pos, del_pos + self.indel_size))
             mini = del_pos
             for b in np.where(self.gen == 'b')[0]:
                 if b in range(del_pos, del_pos + self.indel_size+1):
@@ -193,7 +184,9 @@ class Genome():
         return self.gen
 
     def compute_fitness(self, init = False, new = True):
-
+        '''
+        returns the fitness value of the genome
+        '''
         if init:
             self.pathToFiles = os.path.join(self.pathToFiles, 'Init_files')
         else:
@@ -293,13 +286,12 @@ class Genome():
         try:
             keep = False
             if self.nb_pol == None:
-                sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
+                sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
                                        os.path.join(self.pathToFiles, 'testRes'))
             else:
-                sim.start_transcribing(os.path.join(self.pathToFiles,'paramsOce.ini'),
+                sim.start_transcribing(os.path.join(self.pathToFiles,'params.ini'),
                                        os.path.join(self.pathToFiles, 'testRes'), nb_pol = int(self.nb_pol))
             new_fitness = self.compute_fitness()
-            #new_fitness = 1
             #garder le nouveau genome?
             if new_fitness > self.fitness:
                 keep = True
@@ -308,13 +300,11 @@ class Genome():
                 proba = self.T0*math.exp(-self.T0*t)
                 if rd.random() < proba:
                     keep = True
-            #print("old fit : ", self.fitness, " new fi : ", new_fitness, " keep = ", keep)
             if event == 'inversion':
                 self.delta_fitness[event].append((self.fitness-new_fitness, inv_size))
             else:
                 self.delta_fitness[event].append(self.fitness-new_fitness)
             if keep:
-                #print("keep = ", keep)
                 #mise a jour des attributs en consequent
                 self.genes = self.tmp_genes.copy()
                 self.gen_ancetre = np.array(self.gen)
@@ -334,6 +324,7 @@ class Genome():
 
     #Function to get the number of transcrits per gene
     def nb_transcrits(self):
+        '''returns the number of transcripts of the current genome'''
         pathToResFiles = os.path.join(self.pathToFiles, 'testRes')
         transcrits = pd.read_csv(os.path.join(pathToResFiles, 'save_tr_nbr.csv'), header = None)
         return transcrits
@@ -342,6 +333,8 @@ class Genome():
         '''
         simulates a genome evolution using a Monte Carlo algorithm
         '''
+        stock_genomes = []
+        self.transcripts = np.zeros((10,T))
         self.fitnesses = []
         self.events = []
         self.delta_fitness = {ev:[] for ev in ['insertion', 'deletion', 'inversion']}
@@ -349,13 +342,23 @@ class Genome():
         print(T)
         for t in range(T):
             self.evolution_step(t)
+            stock_genomes.append(self.gen_ancetre)
+            a = self.nb_transcrits()
+            #print(a.as_matrix())
+            self.transcripts[:,t] = list(a.as_matrix())
+            
         if dump:
             path = os.path.join(self.pathToFiles, 'Binary_files')
             with open(os.path.join(path, 'genome.file'), "wb") as f:
                 pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+        return stock_genomes
 
 def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filename = 'heatmap_files.file'):
-    
+    '''
+    Plots the heatmap of the last fitness value depending on the parameters 
+    X and Y and their range, with nRep simulations of time t_sim, saving the
+    figure under the required file name
+    '''
     xs = np.linspace(x_min, x_max, num = n_x)
     ys = np.linspace(y_min, y_max, num = n_y)
     res = np.zeros((len(xs), len(ys)))
@@ -400,15 +403,11 @@ def heatmap(X, x_min, x_max, n_x, Y, y_min, y_max, n_y, nRep, t_sim = 50, filena
             pickle.dump((res, xs, ys, X, Y), f, pickle.HIGHEST_PROTOCOL)
     return (res, xs, ys, X, Y)
 
-pathToFiles = 'D:/ProjetSimADN'
-#pathToFiles = '/home/ocassan/ProjetSimADN'
-#pathToFiles = '/home/amaury/ProjetSimADN'
-#pathToFiles = '/home/julie/Documents/5BIM/BacteriaEvolution/ProjetSimADN/'
-#pathToFiles = '/home/biosciences/users/OceaneAmauryJulie/ProjetSimADN'
-
 def plot_hist(delta_fitness, event, fig_name = "hist.png"):
-    #plots the histogram of the fitness change induced by the 
-    #mutational events
+    '''
+    plots the histogram of the fitness change induced by the 
+    mutational event
+    '''
     plt.figure()
     if event != 'inversion':
         if event == 'insertion':
@@ -423,25 +422,26 @@ def plot_hist(delta_fitness, event, fig_name = "hist.png"):
     plt.ylabel('Counts')
 
 def fitness_hists(N_gen, T):
-	delta_fitness = {ev:[] for ev in ['insertion', 'deletion', 'inversion']}
-	for n in range(N_gen):
-		g = Genome(pathToFiles = pathToFiles, f = 0.5)
-		g.evolution(T)
-		for ev in list(delta_fitness.keys()):
-			delta_fitness[ev] += g.delta_fitness[ev]
-	plot_hist(delta_fitness, 'inversion')
-	plot_hist(delta_fitness, 'insertion')
-	plot_hist(delta_fitness, 'deletion')
-	plt.show()
-	
-#fitness_hists(50, 50)
-
-#g = Genome(pathToFiles = pathToFiles, f = 0.7)
-#g.evolution(100)
+    '''
+    plots the histogram of the fitness change induced by the three
+    mutational events
+    '''
+    delta_fitness = {ev:[] for ev in ['insertion', 'deletion', 'inversion']}
+    for n in range(N_gen):
+        g = Genome(pathToFiles = pathToFiles, f = 0.5)
+        g.evolution(T)
+        for ev in list(delta_fitness.keys()):
+            delta_fitness[ev] += g.delta_fitness[ev]
+    plot_hist(delta_fitness, 'inversion')
+    plot_hist(delta_fitness, 'insertion')
+    plot_hist(delta_fitness, 'deletion')
+    plt.show()
 
 def plot_fitness(genome, fig_name = "fitness.png"): 
-        #shows the fitness evolution in time
-        #with the events as coloured circles on the curve
+        '''
+        shows the fitness evolution in time
+        with the events as coloured circles on the curve
+        '''
         plt.figure()
         plt.plot(genome.fitnesses, color = 'k')
         for ev in list(genome.events):
@@ -460,12 +460,6 @@ def plot_fitness(genome, fig_name = "fitness.png"):
         plt.xlabel('Time')
         plt.savefig(fig_name)
         plt.show()
-        
-#plot_fitness(g)
-#nohup command &
-
-files = heatmap('f', 0, 1, 15, 't', 10, 100, 15, nRep = 2, t_sim = 20)
-
 
 def plot_inv_size_fitness(genome):
     plt.figure()
@@ -473,17 +467,13 @@ def plot_inv_size_fitness(genome):
     plt.plot([d[1] for d in delta], [d[0] for d in delta], 'o')
     plt.show()
     
-#plot_inv_size_fitness(g)
-
-def plot_heatmap(heatmap_files):
+def plot_heatmap(heatmap_files, mean = False):
     res = heatmap_files[0]
     xs = heatmap_files[1]
     ys = heatmap_files[2]
     X = heatmap_files[3]
     Y = heatmap_files[4]
-    
     print(res)
-    
     fig, ax = plt.subplots()
     im = ax.imshow(res)
     #We want to show all ticks...
@@ -510,4 +500,41 @@ def plot_heatmap(heatmap_files):
     plt.show()
     plt.savefig('heatmap_small_'+X+'_'+Y+'.png')
 
-plot_heatmap(files)
+
+def plot_nb_pol(pols, t, f, r):
+    '''
+    plots the last fitness value of the for different polymerase
+    values, an indel/inversions ratio f, r replicates and a simulation
+    time t
+    '''
+    fit = []
+    for n in pols:
+        res = 0
+        for rs in range(r):
+           g = Genome(pathToFiles=pathToFiles, nb_pol=n, f = f)
+           g.evolution(t)
+           res += g.fitness
+        fit.append(res/r)
+    plt.plot(pols, fit, label = 'f = '+str(f))
+    plt.show()
+
+####################################################### Main ###########
+
+pathToFiles = os.path.dirname(os.path.realpath(__file__))
+g = Genome(pathToFiles = pathToFiles, f = 0.5)
+genomes = g.evolution(100)
+plot_fitness(g)
+
+#plot_fitness(g)
+
+#files = heatmap('T0', 0.001, 1, 10, 'nb_pol', 1, 11, 10, nRep = 2, t_sim = 50)
+
+#plot_heatmap(files)
+
+#fitness_hists(50, 50)
+
+#plot_inv_size_fitness(g)
+
+#genomes = g.evolution(10)
+#visualize_nb_transcripts(genomes)
+
